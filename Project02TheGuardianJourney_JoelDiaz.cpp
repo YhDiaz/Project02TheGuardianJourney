@@ -90,10 +90,40 @@ class Graph
 	
 };
 
+//Estructuras
+
+//Elemento aldea
+struct VillageNode
+{
+	public:
+		
+		//Constructores
+		VillageNode();
+		VillageNode(string, VillageNode*);
+		
+		//Destructor
+		~VillageNode();
+		
+		//Metodos
+		VillageNode* AddVillageNode(VillageNode**, string);
+		void PrintList(VillageNode*);
+		
+	private:
+		
+		//Atributos
+		string name_;
+		VillageNode* next_;
+		
+		//Metodos
+		VillageNode* CreateVillageNode(string);
+};
+
 //Funciones
 
-void ReadGuardiansFile(queue<Guardian> *guardians, bool* successRead); //Leer archivo de guardianes
+void VillagesFileCountValidation(int count, bool* successRead); //Validacion de la cantidad de aldeas
+//
 void ReadVillagesFile(queue<Village> *villages, bool* successRead); //Leer archivo de aldeas
+void ReadGuardiansFile(queue<Guardian> *guardians, bool* successRead); //Leer archivo de guardianes
 void ReadFiles(queue<Guardian> *guardians, queue<Village> *villages, bool* successRead); //Leer archivos
 void PrintGuardianQueue(queue<Guardian> guardians); //Imprimir cola de guardianes
 void PrintVillagesQueue(queue<Village> villages); //Imprimir cola de aldeas
@@ -228,8 +258,187 @@ int main()
 	{
 		return next_;
 	}
+	
+	//VillageNode
+	
+	//Constructores
+	VillageNode::VillageNode()
+	{
+		
+	}
+	
+	VillageNode::VillageNode(string name, VillageNode* next)
+	{
+		name_ = name;
+		next_ = next;
+	}
+	
+	//Destructor
+	VillageNode::~VillageNode()
+	{
+		
+	}
+	
+	//Metodos
+	VillageNode* VillageNode::AddVillageNode(VillageNode** root, string villageName)
+	{
+		cout << "Entrando addNode";
+		if(root == nullptr)
+		{
+			cout << "E";
+			*root = CreateVillageNode(villageName);
+			
+			cout << "Pasa root";
+			return *root;
+		}
+		else
+		{
+			VillageNode* current = *root;
+			
+			while(current->next_ != nullptr)
+			{
+				current = current->next_;
+			}
+			
+			current->next_ = CreateVillageNode(villageName);
+		}
+		
+		return nullptr;
+	}
+	
+	VillageNode* VillageNode::CreateVillageNode(string name)
+	{
+		cout << "Entra creacion";
+		VillageNode* newVillageNode = new VillageNode(name, nullptr);
+		cout << "Pasa creacion";
+		
+		return newVillageNode;
+	}
+	
+	void VillageNode::PrintList(VillageNode* root)
+	{
+		VillageNode* current = root;
+		cout << "\n\tLista de aldeas:\n" << endl;
+		
+		int count = 1;
+		
+		while(current != nullptr)
+		{
+			cout << "\t\t* Aldea " << count << ": " << root->name_ << endl;
+			count++;
+		}
+	}
 
 //Funciones
+
+bool VilllagesFileSameVillageValidation(string name, string adjacentVillageName)
+{
+	if(name == adjacentVillageName)
+	{
+		return false;
+	}
+	
+	return true;
+}
+
+//Validacion de la cantidad de aldeas del archivo de aldeas
+void VillagesFileCountValidation(int count, bool* successRead)
+{
+	int minVillages = 2; //Minimo 2 aldeas: Tesla y otra
+	
+	cout << "\n\tDEBUG count: " << count;
+	
+	if(count < minVillages) //La cantidad de aldeas es menor a la cantidad minima
+	{
+		if(count == 0) //Archivo vacio
+		{
+			cout << "\n\t* El archivo esta vacio (Minimo de aldeas requeridas: " << minVillages << ") *" << endl;
+		}
+		else //Archivo con una sola aldea
+		{
+			cout << "\n\t* El archivo solo tiene una aldea (Minimo de aldeas requeridas: " << minVillages << ") *" << endl;
+		}
+		
+		*successRead = false; //Lectura de archivos fallida
+	}
+	else
+	{
+		*successRead = true;
+	}
+}
+
+//Leer archivo de aldeas
+void ReadVillagesFile(queue<Village> *villages, bool* successRead)
+{
+	string filename = "Villages.txt";
+	ifstream file(filename);
+	
+	if(file.is_open())
+	{
+		string line;
+		getline(file, line); //Omitir la primera linea correspondiente a los encabezados
+		int countVillages = 0, countLines = 1;
+		bool validation = false;
+		
+		VillageNode* villagesList = nullptr;
+		
+		getline(file, line); //Obtener primera linea
+		
+		do
+		{
+			countLines++; //Incremento del contador de lineas
+			stringstream ss(line);
+			string name, adjacentVillageName;
+			
+			getline(ss, name, ',');
+			getline(ss, adjacentVillageName, ',');
+			
+			validation = VilllagesFileSameVillageValidation(name, adjacentVillageName);
+			
+			if(validation) //Si se supero la validacion, se agregan las aldeas a la lista
+			{
+				if(villagesList == nullptr)
+				{
+					cout << "Entra null";
+					villagesList = villagesList->AddVillageNode(&villagesList, name);
+				}
+				else
+				{
+					villagesList->AddVillageNode(&villagesList, name);
+				}
+				
+				villagesList->AddVillageNode(&villagesList, adjacentVillageName);
+			}
+			else
+			{
+				cout << "\n\t* Una aldea no puede ser adyacente de si misma (" << name << ", Linea " << countLines << " en el archivo " << filename << ") *" << endl;
+			}
+			
+			countVillages++; //Incremento del contador de aldeas
+		}
+		while(getline(file, line) && validation);
+		
+		//villagesList->PrintList(villagesList);
+		
+		if(validation) //Si se superaron las validaciones de la lectura y guardado de datos, se continuan las validaciones
+		{
+			VillagesFileCountValidation(countVillages, successRead); //Validacion de la cantidad de aldeas (Minimo 2)
+			//VillagesFileTeslaValidation(successRead);
+		}
+		
+		if(*successRead)
+		{
+			cout << "\n\tDEBUG Validacion contador true";
+		}
+		
+		file.close();
+	}
+	else
+	{
+		cout << "\n\tError al intentar abrir el archivo: " << filename << endl;
+		*successRead = false; //El archivo no se leyo con exito
+	}
+}
 
 //Leer archivo de guardianes
 void ReadGuardiansFile(queue<Guardian> *guardians, bool* successRead)
@@ -266,84 +475,16 @@ void ReadGuardiansFile(queue<Guardian> *guardians, bool* successRead)
 	}
 }
 
-//Leer archivo de aldeas
-void ReadVillagesFile(queue<Village> *villages, bool* successRead)
-{
-	string filename = "Villages.txt";
-	ifstream file(filename);
-	
-	if(file.is_open())
-	{
-		string line;
-		getline(file, line); // Skip the header line
-		
-		while(getline(file, line))
-		{
-			stringstream ss(line);
-			string name, adjacentVillageName;
-			
-			getline(ss, name, ',');
-			getline(ss, adjacentVillageName, ',');
-			
-			Village* village = new Village(name, adjacentVillageName); //Creacion de una nueva aldea	
-			villages->push(*village); //Se agrega la aldea a la cola
-			
-			/*
-			Village* current;
-			
-			if(!villages->empty())
-			{
-				current = &villages->front();
-			}
-			
-			bool found = false;
-			
-			while(current != NULL && !found)
-			{
-				if(current->GetName() == name)
-				{
-					found = true;
-					current->AddAdjacentVillageName(adjacentVillageName);
-				}
-				else
-				{
-					current = current->GetNext();
-				}
-			}
-			
-			if(!found)
-			{
-				Village* village = new Village(name, adjacentVillageName); //Creacion de una nueva aldea
-				
-				/*if(!villages->empty()) //Si hay al menos un elemento en la cola, se asignan previous y next
-				{
-					villages->back().SetNext(village);
-					village->SetPrevious(&(villages->back()));
-				}
-				
-				villages->push(*village); //Se agrega la aldea a la cola
-			}
-			*/		
-		}
-		
-		file.close();
-	}
-	else
-	{
-		cout << "\n\tError al intentar abrir el archivo: " << filename << endl;
-		*successRead = false; //El archivo no se leyo con exito
-	}
-}
-
 //Leer archivos
 void ReadFiles(queue<Guardian> *guardians, queue<Village> *villages, bool* successRead)
 {
 	cout << "\tCargando archivos..." << endl;
-	ReadGuardiansFile(guardians, successRead); //Archivo de guardianes
+	ReadVillagesFile(villages, successRead); //Archivo de aldeas
 	
 	if(*successRead) //Si no se leyo bien el primer archivo, no es necesario leer el segundo
 	{
-		ReadVillagesFile(villages, successRead); //Archivo de aldeas
+		cout << "\n\tDEBUG Lectura segundo archivo";
+		ReadGuardiansFile(guardians, successRead); //Archivo de guardianes
 	}
 	
 	if(*successRead)
@@ -407,4 +548,3 @@ void PrintVillagesQueue(queue<Village> villages)
     	temp.pop(); //Dequeue del primer elemento de la cola
 	}
 }
-
