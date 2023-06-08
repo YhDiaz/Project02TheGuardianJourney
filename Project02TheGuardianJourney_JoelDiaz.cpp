@@ -105,8 +105,9 @@ struct VillageNode
 		~VillageNode();
 		
 		//Metodos
-		VillageNode* AddVillageNode(VillageNode**, string);
+		VillageNode* AddVillageNode(VillageNode**, string, int*);
 		void PrintList(VillageNode*);
+		bool SearchVillage(VillageNode*, string);
 		
 	private:
 		
@@ -121,7 +122,8 @@ struct VillageNode
 //Funciones
 
 void VillagesFileCountValidation(int count, bool* successRead); //Validacion de la cantidad de aldeas
-//
+void VillagesFileTeslaValidation(int count, bool* successRead, VillageNode* villagesList); //Validacion de la existencia de Tesla (aldea principal)
+bool VillagesFileSameVillageValidation(string name, string adjacentVillageName); //Validacion para saber si la aldea es adyacente consigo misma
 void ReadVillagesFile(queue<Village> *villages, bool* successRead); //Leer archivo de aldeas
 void ReadGuardiansFile(queue<Guardian> *guardians, bool* successRead); //Leer archivo de guardianes
 void ReadFiles(queue<Guardian> *guardians, queue<Village> *villages, bool* successRead); //Leer archivos
@@ -280,27 +282,38 @@ int main()
 	}
 	
 	//Metodos
-	VillageNode* VillageNode::AddVillageNode(VillageNode** root, string villageName)
+	VillageNode* VillageNode::AddVillageNode(VillageNode** root, string villageName, int* countVillages)
 	{
-		cout << "Entrando addNode";
-		if(root == nullptr)
+		if(*root == nullptr)
 		{
-			cout << "E";
-			*root = CreateVillageNode(villageName);
+			*root = CreateVillageNode(villageName); //Asignacion del root de la lista de aldeas
+			*countVillages += 1; //Incremento del contador de aldeas
 			
-			cout << "Pasa root";
 			return *root;
 		}
 		else
 		{
 			VillageNode* current = *root;
+			bool villageNodeDoesntExist = true; //Variable que indica que la aldea no existe en la lista (true) o que si existe (false)
 			
-			while(current->next_ != nullptr)
+			if(current->name_ != villageName) //La aldea no es el root de la lista
 			{
-				current = current->next_;
-			}
-			
-			current->next_ = CreateVillageNode(villageName);
+				while(current->next_ != nullptr)
+				{
+					if(current->name_ == villageName) //La aldea ya existe en la lista
+					{
+						villageNodeDoesntExist = false;
+					}
+					
+					current = current->next_;
+				}
+				
+				if(villageNodeDoesntExist) //Si la aldea no existe en la lista, se agrega
+				{
+					current->next_ = CreateVillageNode(villageName);
+					*countVillages += 1; //Incremento del contador de aldeas
+				}
+			}		
 		}
 		
 		return nullptr;
@@ -308,9 +321,7 @@ int main()
 	
 	VillageNode* VillageNode::CreateVillageNode(string name)
 	{
-		cout << "Entra creacion";
-		VillageNode* newVillageNode = new VillageNode(name, nullptr);
-		cout << "Pasa creacion";
+		VillageNode* newVillageNode = new VillageNode(name, nullptr); //Creacion de un nuevo elemento
 		
 		return newVillageNode;
 	}
@@ -324,13 +335,32 @@ int main()
 		
 		while(current != nullptr)
 		{
-			cout << "\t\t* Aldea " << count << ": " << root->name_ << endl;
+			cout << "\t\t* Aldea " << count << ": " << current->name_ << endl;
 			count++;
+			current = current->next_;
 		}
+	}
+	
+	bool VillageNode::SearchVillage(VillageNode* root, string villageName)
+	{
+		VillageNode* current = root;
+		
+		while(current != nullptr)
+		{
+			if(current->name_ == villageName)
+			{
+				return true; //Se encontro la aldea
+			}
+			
+			current = current->next_;
+		}
+		
+		return false; //Salir del bucle indica que no se encontro la aldea
 	}
 
 //Funciones
 
+//Validacion para saber si la aldea es adyacente consigo misma
 bool VilllagesFileSameVillageValidation(string name, string adjacentVillageName)
 {
 	if(name == adjacentVillageName)
@@ -363,7 +393,19 @@ void VillagesFileCountValidation(int count, bool* successRead)
 	}
 	else
 	{
-		*successRead = true;
+		*successRead = true; //Cantidad de aldeas correcta
+	}
+}
+
+//Validacion de la existencia de Tesla (aldea principal)
+void VillagesFileTeslaValidation(int count, bool* successRead, VillageNode* villagesList)
+{
+	bool teslaFound = villagesList->SearchVillage(villagesList, "Tesla"); //Se busca Tesla en la lista de aldeas
+	*successRead = teslaFound; //El exito de la validacion depende de haber encontrado Tesla en la lista
+	
+	if(count >= 2 && !teslaFound)
+	{
+		cout << "\t* La cantidad de aldeas es correcta pero Tesla no existe *" << endl;
 	}
 }
 
@@ -378,13 +420,11 @@ void ReadVillagesFile(queue<Village> *villages, bool* successRead)
 		string line;
 		getline(file, line); //Omitir la primera linea correspondiente a los encabezados
 		int countVillages = 0, countLines = 1;
-		bool validation = false;
+		bool validation = true;
 		
 		VillageNode* villagesList = nullptr;
 		
-		getline(file, line); //Obtener primera linea
-		
-		do
+		while(getline(file, line) && validation)
 		{
 			countLines++; //Incremento del contador de lineas
 			stringstream ss(line);
@@ -399,31 +439,27 @@ void ReadVillagesFile(queue<Village> *villages, bool* successRead)
 			{
 				if(villagesList == nullptr)
 				{
-					cout << "Entra null";
-					villagesList = villagesList->AddVillageNode(&villagesList, name);
+					villagesList = villagesList->AddVillageNode(&villagesList, name, &countVillages);
 				}
 				else
 				{
-					villagesList->AddVillageNode(&villagesList, name);
+					villagesList->AddVillageNode(&villagesList, name, &countVillages);
 				}
 				
-				villagesList->AddVillageNode(&villagesList, adjacentVillageName);
+				villagesList->AddVillageNode(&villagesList, adjacentVillageName, &countVillages);
 			}
 			else
 			{
 				cout << "\n\t* Una aldea no puede ser adyacente de si misma (" << name << ", Linea " << countLines << " en el archivo " << filename << ") *" << endl;
 			}
-			
-			countVillages++; //Incremento del contador de aldeas
 		}
-		while(getline(file, line) && validation);
 		
 		//villagesList->PrintList(villagesList);
 		
 		if(validation) //Si se superaron las validaciones de la lectura y guardado de datos, se continuan las validaciones
 		{
 			VillagesFileCountValidation(countVillages, successRead); //Validacion de la cantidad de aldeas (Minimo 2)
-			//VillagesFileTeslaValidation(successRead);
+			VillagesFileTeslaValidation(countVillages, successRead, villagesList); //Validacion de la existencia de Tesla (aldea principal)
 		}
 		
 		if(*successRead)
@@ -484,7 +520,7 @@ void ReadFiles(queue<Guardian> *guardians, queue<Village> *villages, bool* succe
 	if(*successRead) //Si no se leyo bien el primer archivo, no es necesario leer el segundo
 	{
 		cout << "\n\tDEBUG Lectura segundo archivo";
-		ReadGuardiansFile(guardians, successRead); //Archivo de guardianes
+		//ReadGuardiansFile(guardians, successRead); //Archivo de guardianes
 	}
 	
 	if(*successRead)
