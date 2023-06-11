@@ -298,12 +298,6 @@ class Village
 		int numAdjacentVillages_;
 };
 
-//Grafo: Aldeas
-class Graph
-{
-	
-};
-
 //Nodo guardian (Para la lista de guardianes)
 class GuardianNode
 {
@@ -558,6 +552,29 @@ class VillageNode
 			return nullptr; //Salir del bucle indica que no se encontro la aldea
 		}
 		
+		Village* SearchVillageByNum(VillageNode* root, int num)
+		{
+			if(num > 0)
+			{
+				VillageNode* current = root;
+				int count = 0;
+				
+				while(current != nullptr)
+				{
+					count++;
+					
+					if(count == num) //Aldea encontrada
+					{
+						return current->village_;
+					}
+					
+					current = current->next_;
+				}
+			}	
+			
+			return nullptr; //La aldea no fue encontrada o el numero no estaba dentro del rango		
+		}
+		
 		//Getters
 		Village* GetVillage() //Aldea
 		{
@@ -585,6 +602,89 @@ class VillageNode
 		}
 };
 
+//Grafo: Aldeas
+class Graph
+{
+	public:
+		
+		//Constructores
+		Graph(int size)
+		{
+			size_ = size;
+		}
+		
+		//Destructor
+		~Graph()
+		{
+			
+		}
+	
+		//Metodos
+		void CreateMatrix() //Crear matriz de adyacencia
+		{
+			graph_ = vector<vector<int>>(size_, vector<int>(size_, 0));
+		}
+		
+		void CreateConnections(unordered_map<string, int> mapVillageName_Index, unordered_map<int, string> mapIndex_VillageName, VillageNode* villages) //Crear conexiones
+		{
+			for(int i = 0; i < size_; i++)
+			{
+				string name = mapIndex_VillageName[i]; //Nombre de la aldea "i" en el mapa
+				Village* currentVillage = villages->SearchVillage(villages, name); //Busqueda de la aldea en la lista, a traves del nombre
+				vector<string> adjacentVillages = currentVillage->GetAdjacentVillagesNames(); //Obtencion del vector de aldeas adyacentes de la aldea "i"
+				cout << "\n\tAdyacentes de " << name << ":\n" << endl;
+				
+				for(int j = 0; j < currentVillage->GetNumAdjacentVillages(); j++)
+				{
+					string adjacentName = adjacentVillages[j]; //Nombre de la aldea adyacente "j" en el vector de aldeas adyacentes
+					int k = mapVillageName_Index[adjacentName]; //Indice de la aldea "j" en el mapa
+					AddEdge(i, k); //Se crea la conexion entre la aldea "i" y la aldea "j" en el grafo
+					cout << "\t\t- " << adjacentName << endl;
+					
+				}
+			}
+		}
+		
+		void AddEdge(int village, int adjacent) //Agregar arista
+		{
+			graph_[village][adjacent] = 1;
+			graph_[adjacent][village] = 1;
+		}
+		
+		void PrintGraph() //Mostrar el grafo (matriz)
+		{
+			cout << "\n* Matriz de adyacencia:\n" << endl;
+				
+			for(const auto& row : graph_)
+			{
+				cout << "\t";
+				
+				for(int val : row)
+				{
+					cout << val << " ";						
+				}
+					
+				cout << endl;
+			}
+		}
+		
+		bool AreAdjacent(int village, int adjacent) //Aldeas adyacentes
+		{
+			if(graph_[village][adjacent] == 1)
+			{
+				return true; //Las aldeas estan conectadas
+			}
+			
+			return false; //Las aldeas no estan conectadas
+		}
+	
+	private:
+		
+		//Atributos
+		vector<vector<int>> graph_;
+		int size_;
+};
+
 //Funciones
 
 bool VillagesFileSameVillageValidation(string, string); //Validacion para saber si la aldea es adyacente consigo misma
@@ -602,7 +702,9 @@ void ReadVillagesFile(VillageNode**, bool*); //Leer archivo de aldeas
 void ReadGuardiansFile(GuardianNode**, VillageNode*, bool*); //Leer archivo de guardianes
 void FilesInfo(); //Informacion sobre el contenido de los archivos en caso de falla en la lectura
 void ReadFiles(GuardianNode**, VillageNode**, bool*); //Leer archivos
+
 void MainMenu(GuardianNode**, VillageNode**, Player**);
+void GameLoop(GuardianNode**, VillageNode**, Player**);
 //void PrintGuardianQueue(queue<Guardian> guardians); //Imprimir cola de guardianes
 //void PrintVillagesQueue(queue<Village> villages); //Imprimir cola de aldeas
 
@@ -624,6 +726,9 @@ int main()
 		//villages->PrintJustNames(villages);
 		
 		MainMenu(&guardians, &villages, &player);
+		GameLoop(&guardians, &villages, &player);
+		
+		cout << "\n\t\tIn main:\n\t\tNombre del jugador: " << player->GetName() << "\n\t\tPoder: " << player->GetPower() << "\n\t\tAldea: " << player->GetHomeVillage();
 	}
 	
 	return 0;
@@ -1137,47 +1242,41 @@ void CreatePlayer(GuardianNode** guardians, VillageNode** villages, Player** pla
 	if(*player == nullptr) //El player aun no se crea
 	{
 		//Aldea y verificacion
-		char line[100];
-		stringstream ss(line);
-		
+		int numVillage = 0;
 		(*villages)->PrintJustNames(*villages);
 		cout << endl;
 		
-		cout << "\n\t* Ingresa el nombre de la aldea en la que deseas iniciar: ";
-		cin >> village;
+		cout << "\n\t* Ingresa el NUMERO de la aldea en la que deseas iniciar: ";
+		cin >> numVillage;
 		
-		Village* villageSelected = (*villages)->SearchVillage(*villages, village);
+		Village* villageSelected = (*villages)->SearchVillageByNum(*villages, numVillage);
 		
-		while(villageSelected == nullptr) //La aldea no existe
+		while(villageSelected == nullptr) //La aldea no existe o el numero ingresado no estaba dentro del rango
 		{
-			cout << "\n\t\t* (Error: La aldea no existe) Por favor, selecciona una aldea de la lista: ";
+			cout << "\n\t\t* (Error: La aldea no existe o el numero estaba fuera de rango) Por favor, selecciona una aldea de la lista: ";
 			cin >> village;
-			villageSelected = (*villages)->SearchVillage(*villages, village);
+			villageSelected = (*villages)->SearchVillageByNum(*villages, numVillage);
 		}
 		
 		while(villageSelected->GetName() == mainVillage) //La aldea seleccionada no puede ser la aldea principal
 		{
 			cout << "\n\t\t* (Error: La aldea de origen no puede ser " << mainVillage << " ya que es la aldea principal)\n\t\tPor favor, selecciona otra aldea de origen: ";
-			getline(ss, village, '\n');
-			villageSelected = (*villages)->SearchVillage(*villages, village);
+			cin >> numVillage;
+			villageSelected = (*villages)->SearchVillageByNum(*villages, numVillage);
 			
 			while(villageSelected == nullptr) //La aldea no existe
 			{
-				cout << "\n\t\t* (Error: La aldea no existe) Por favor, selecciona una aldea de la lista: ";
-				getline(ss, village, '\n');
-				villageSelected = (*villages)->SearchVillage(*villages, village);
+				cout << "\n\t\t* (Error: La aldea no existe o el numero estaba fuera de rango) Por favor, selecciona una aldea de la lista: ";
+				cin >> numVillage;
+				villageSelected = (*villages)->SearchVillageByNum(*villages, numVillage);
 			}
 		}
 		
+		village = villageSelected->GetName();
 		*player = new Player(name, minPower, village);
 	}
 	
 	cout << "\n\t\tPlayer creado\n\n\t\tNombre: " << (*player)->GetName() << "\n\t\tNivel de poder: " << (*player)->GetPower() << "\n\t\tAldea de origen: " << (*player)->GetHomeVillage() << endl;
-	
-	//Si el nombre pertenece a un guardian, advertir y pedir confirmacion
-	//Si el nombre es de un guardian, modificar sus puntos de poder
-	//Si el nombre no es de un guardian, pedir aldea y verificar
-	//Agregar la aldea del player
 }
 
 void MainMenu(GuardianNode** guardians, VillageNode** villages, Player** player)
@@ -1211,6 +1310,83 @@ void MainMenu(GuardianNode** guardians, VillageNode** villages, Player** player)
 	{
 		cout << "\n\t\tCerrando el juego...\n";
 	}
+}
+
+//Crear mapas para el juego
+void GameLoopCreateMaps(unordered_map<string, int>* mapVillageName_Index, unordered_map<int, string>* mapIndex_VillageName, VillageNode** villages, int* count)
+{
+	VillageNode* current = *villages;
+	
+	while(current != nullptr) //Mientras existan aldeas en la lista
+	{
+		string name = current->GetVillage()->GetName(); //Nombre de la aldea
+		
+		(*mapVillageName_Index)[name] = *count;
+		(*mapIndex_VillageName)[*count] = name;
+		
+		(*count)++;
+		current = current->GetNext();
+	}
+}
+
+//Loop del juego
+void GameLoop(GuardianNode** guardians, VillageNode** villages, Player** player)
+{
+	int numVillages = 0;
+	unordered_map<string, int> mapVillageName_Index; //Mapa: Nombre de aldeas --- Indice en la matriz de adyacencia
+	unordered_map<int, string> mapIndex_VillageName; //Mapa: Indice en la matriz de adyacencia --- Nombre de aldeas
+	
+	GameLoopCreateMaps(&mapVillageName_Index, &mapIndex_VillageName, villages, &numVillages);
+	Graph* villagesGraph = new Graph(numVillages);
+	villagesGraph->CreateMatrix();
+	villagesGraph->CreateConnections(mapVillageName_Index, mapIndex_VillageName, *villages);
+	villagesGraph->PrintGraph();
+	
+	cout << "\n\tComienza el viaje..." << endl;
+	bool stopGame = false;
+	
+	do
+	{
+		cout << "\n\t------------------------------ MENU DE JUEGO ------------------------------" << endl;
+		cout << "\n\tSelecciona la accion que quieres realizar;\n\n\t\t* Presiona <0> para salir del juego\n\t\t* Presiona <1> para entrenar con algun guardian de la aldea\n\t\t* Presiona <2> para ir a otra ciudad\n\n\t\t* Ingresa tu opcion: ";
+	
+		int option = 0;
+		
+		cin >> option;
+		
+		while(option < 0 || option > 2)
+		{
+			cout << "\n\t\t\t* (Error: Opcion invalida) Por favor, selecciona una opcion definida: ";
+			cin >> option;
+		}
+		
+		if(option == 1)
+		{
+			
+		}
+		else if(option == 2)
+		{
+			
+		}
+		else
+		{
+			stopGame = true;
+			cout << "\n\t\tCerrando el juego..." << endl;
+		}
+	}
+	while(!stopGame);
+
+	/*
+	cout << "\n\tMapa Indice-Aldea:\n" << endl;
+	
+	for(const auto& pair : mapIndex_VillageName)
+	{
+		int index = pair.first;
+		const string& village = pair.second;
+		
+		cout << "\t- Indice " << index << ": " << village << endl;
+	}
+	*/	
 }
 
 /*Imprimir cola de guardianes
