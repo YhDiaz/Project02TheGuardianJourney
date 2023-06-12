@@ -30,10 +30,16 @@ class Player
 			name_ = name;
 			power_ = power;
 			homeVillage_ = home;
+			currentVillage_ = home;
 		}
 		
 		//Metodos
 		
+		//Setters
+		void SetCurrentVillage(string name)
+		{
+			currentVillage_ = name;
+		}
 		
 		//Getters
 		string GetName()
@@ -51,12 +57,18 @@ class Player
 			return homeVillage_;
 		}
 		
+		string GetCurrentVillage()
+		{
+			return currentVillage_;
+		}
+		
 	private:
 		
 		//Atributos
 		string name_;
 		int power_;
 		string homeVillage_;
+		string currentVillage_;
 		//AGREGAR HISTORIALES
 };
 
@@ -200,6 +212,7 @@ class Village
 			name_ = "";
 			numGuardians_ = 0;
 			numAdjacentVillages_ = 0;
+			master_ = nullptr;
 		}
 		
 		Village(string name, string adjacentVillageName)
@@ -208,6 +221,7 @@ class Village
 			adjacentVillagesNames_.push_back(adjacentVillageName);
 			numAdjacentVillages_ = 1;
 			numGuardians_ = 0;
+			master_ = nullptr;
 		}
 		
 		//Destructor
@@ -231,14 +245,60 @@ class Village
 			numAdjacentVillages_++; //Incremento en el contador de aldeas adyacentes
 		}
 		
+		void PrintGuardiansNames()
+		{
+			int i = 1;
+			
+			for(const auto& guardian : guardians_)
+			{
+				if(guardian == master_)
+				{
+					cout << "\n\t- Guardian " << i << ": " << guardian->GetName() << " (Maestro de la aldea)";
+				}
+				else
+				{
+					cout << "\n\t- Guardian " << i << ": " << guardian->GetName();
+				}
+
+				i++;
+			}
+		}
+		
 		void AddGuardian(Guardian* guardian)
 		{
+			if(master_ != nullptr)
+			{
+				if(guardian->GetPowerLevel() > master_->GetPowerLevel())
+				{
+					master_ = guardian;
+				}
+			}
+			else
+			{
+				master_ = guardian;
+			}
+			
 			guardians_.push_back(guardian);
 		}
 		
 		void IncrementNumOfGuardians()
 		{
 			numGuardians_++;
+		}
+		
+		Guardian* SearchGuardianByIndex(int index)
+		{
+			int count = 1;
+			
+			for(const auto& guardian : guardians_)
+			{
+				if(index == count)
+				{
+					return guardian;
+				}
+				
+				count++;
+			}
 		}
 		
 		//Setters
@@ -275,7 +335,7 @@ class Village
 		
 		Guardian* GetMainMaster()
 		{
-			Guardian* mainMaster = guardians_.front();
+/*Guardian* mainMaster = guardians_.front();
 			
 			for(const auto& guardian : guardians_)
 			{
@@ -283,9 +343,9 @@ class Village
 				{
 					mainMaster = guardian;
 				}
-			}
+			}*/
 			
-			return mainMaster;
+			return master_;
 		}
 	
 	//Atributos
@@ -294,6 +354,7 @@ class Village
 		string name_;
 		vector<string> adjacentVillagesNames_;
 		vector<Guardian*> guardians_;
+		Guardian* master_;
 		int numGuardians_;
 		int numAdjacentVillages_;
 };
@@ -608,9 +669,9 @@ class Graph
 	public:
 		
 		//Constructores
-		Graph(int size)
+		Graph()
 		{
-			size_ = size;
+			size_ = 0;
 		}
 		
 		//Destructor
@@ -620,16 +681,32 @@ class Graph
 		}
 	
 		//Metodos
+		void CreateMaps(VillageNode* root) //Crear mapas
+		{
+			VillageNode* current = root;
+	
+			while(current != nullptr) //Mientras existan aldeas en la lista
+			{
+				string name = current->GetVillage()->GetName(); //Nombre de la aldea
+				
+				mapVillageName_Index_[name] = size_;
+				mapIndex_VillageName_[size_] = name;
+				
+				size_++;
+				current = current->GetNext();
+			}
+		}
+		
 		void CreateMatrix() //Crear matriz de adyacencia
 		{
 			graph_ = vector<vector<int>>(size_, vector<int>(size_, 0));
 		}
 		
-		void CreateConnections(unordered_map<string, int> mapVillageName_Index, unordered_map<int, string> mapIndex_VillageName, VillageNode* villages) //Crear conexiones
+		void CreateConnections(VillageNode* villages) //Crear conexiones
 		{
 			for(int i = 0; i < size_; i++)
 			{
-				string name = mapIndex_VillageName[i]; //Nombre de la aldea "i" en el mapa
+				string name = mapIndex_VillageName_[i]; //Nombre de la aldea "i" en el mapa
 				Village* currentVillage = villages->SearchVillage(villages, name); //Busqueda de la aldea en la lista, a traves del nombre
 				vector<string> adjacentVillages = currentVillage->GetAdjacentVillagesNames(); //Obtencion del vector de aldeas adyacentes de la aldea "i"
 				cout << "\n\tAdyacentes de " << name << ":\n" << endl;
@@ -637,7 +714,7 @@ class Graph
 				for(int j = 0; j < currentVillage->GetNumAdjacentVillages(); j++)
 				{
 					string adjacentName = adjacentVillages[j]; //Nombre de la aldea adyacente "j" en el vector de aldeas adyacentes
-					int k = mapVillageName_Index[adjacentName]; //Indice de la aldea "j" en el mapa
+					int k = mapVillageName_Index_[adjacentName]; //Indice de la aldea "j" en el mapa
 					AddEdge(i, k); //Se crea la conexion entre la aldea "i" y la aldea "j" en el grafo
 					cout << "\t\t- " << adjacentName << endl;
 					
@@ -682,7 +759,9 @@ class Graph
 		
 		//Atributos
 		vector<vector<int>> graph_;
-		int size_;
+		int size_; //Cantidad de aldeas
+		unordered_map<string, int> mapVillageName_Index_; //Mapa: Nombre de aldeas --- Indice en la matriz de adyacencia
+		unordered_map<int, string> mapIndex_VillageName_; //Mapa: Indice en la matriz de adyacencia --- Nombre de aldeas
 };
 
 //Funciones
@@ -703,7 +782,7 @@ void ReadGuardiansFile(GuardianNode**, VillageNode*, bool*); //Leer archivo de g
 void FilesInfo(); //Informacion sobre el contenido de los archivos en caso de falla en la lectura
 void ReadFiles(GuardianNode**, VillageNode**, bool*); //Leer archivos
 
-void MainMenu(GuardianNode**, VillageNode**, Player**);
+void MainMenu(GuardianNode**, VillageNode**, Player**, bool*);
 void GameLoop(GuardianNode**, VillageNode**, Player**);
 //void PrintGuardianQueue(queue<Guardian> guardians); //Imprimir cola de guardianes
 //void PrintVillagesQueue(queue<Village> villages); //Imprimir cola de aldeas
@@ -713,7 +792,7 @@ int main()
 	GuardianNode* guardians = nullptr;
 	VillageNode* villages = nullptr;
 	Player* player = nullptr;
-	bool successRead = true;
+	bool successRead = true, endGame = false;
 	
 	ReadFiles(&guardians, &villages, &successRead);
 	
@@ -725,10 +804,14 @@ int main()
 		//villages->PrintFullList(villages);
 		//villages->PrintJustNames(villages);
 		
-		MainMenu(&guardians, &villages, &player);
-		GameLoop(&guardians, &villages, &player);
+		MainMenu(&guardians, &villages, &player, &endGame);
 		
-		cout << "\n\t\tIn main:\n\t\tNombre del jugador: " << player->GetName() << "\n\t\tPoder: " << player->GetPower() << "\n\t\tAldea: " << player->GetHomeVillage();
+		if(!endGame)
+		{
+			GameLoop(&guardians, &villages, &player);
+		}	
+		
+//cout << "\n\t\tIn main:\n\t\tNombre del jugador: " << player->GetName() << "\n\t\tPoder: " << player->GetPower() << "\n\t\tAldea: " << player->GetHomeVillage();
 	}
 	
 	return 0;
@@ -1150,7 +1233,7 @@ void MainMenuPostSelection(int option, bool* selection, bool* stopLoop)
 			cout << "\n\t\t------------------------- INFORMACION: SELECCION DE UN GUARDIAN -------------------------" << endl;
 			cout << "\n\t\tAl seleccionar un guardian debes considerar lo siguiente:\n\n\t\t1. No podras cambiarle el nombre\n\t\t2. No podras elegir la aldea en la cual inicia\n\t\t3. Los puntos de poder se actualizaran al de aprendiz (en caso de que sea un maestro)\n\t\t4. No puedes seleccionar al maestro principal" << endl;
 		}
-		else
+		else if(option == 2)
 		{
 			cout << "\n\t\t------------------------- INFORMACION: CREACION DE UN GUARDIAN -------------------------" << endl;
 			cout << "\n\t\tAl crear un guardian debes considerar lo siguiente:\n\n\t\t1. Podras definir el nombre\n\t\t2. Podras elegir la aldea en la cual inicia (excepto " << mainVillage << ")\n\t\t3. Comenzaras con los puntos de poder seran de un aprendiz\n\t\t4. Si usas el nombre de un guardian que ya existe, se te asignara dicho guardian\n\t\ty aplicaran las reglas de Seleccion de guardian (Se conserva el nombre, la aldea\n\t\tde origen y se reinician los puntos de poder)" << endl;
@@ -1164,7 +1247,7 @@ void SelectPlayer(GuardianNode** guardians, VillageNode** villages, Player** pla
 	
 }
 
-//
+//Asignacion de datos al crear un jugador
 void CreatePlayerAssignData(Player** player, Guardian* guardian)
 {
 	string name = guardian->GetName();
@@ -1173,14 +1256,45 @@ void CreatePlayerAssignData(Player** player, Guardian* guardian)
 	*player = new Player(name, minPower, village);
 }
 
-//Crear jugador
-void CreatePlayer(GuardianNode** guardians, VillageNode** villages, Player** player)
+//Advertencia al crear un jugador: Hay un guardian con el mismo nombre
+void CreatePlayerNameWarning(bool* askName, Player** player, Guardian* guardianSameName, bool* stopLoop)
 {
-	cout << "\n\t------------------------- CREACION DE GUARDIAN -------------------------" << endl;
-	string name, village;
-	bool stopLoop = false, askName = true;;
+	int option = 0;
 	
-	//Nombre y verificacion
+	do
+	{
+		cout << "\n\tAdvertencia: Ya existe un guardian con ese nombre, por lo que no podras\n\tseleccionar la aldea de inicio. Indica la accion que deseas realizar;\n\n\t\t* Presiona <0> para cancelar y escribir otro nombre\n\t\t* Presiona <1> para continuar sin cambiar el nombre\n\t\t* Presiona <2> para ver mas informacion del guardian con el mismo nombre\n\n\t\t* Ingresa tu opcion: ";
+		cin >> option;
+		
+		while(option < 0 || option > 2)
+		{
+			cout << "\n\t\t\t* (Error: Opcion invalida) Por favor, selecciona una opcion definida: ";
+			cin >> option;
+		}
+		
+		if(option == 0)
+		{
+			*askName = true;
+		}
+		else if(option == 1)
+		{
+			CreatePlayerAssignData(player, guardianSameName);
+			*stopLoop = true;
+		}
+		else
+		{
+			guardianSameName->PrintData(true, true, true, true, false);
+			cout << endl;
+		}
+	}
+	while(option != 0 && option != 1);
+}
+
+//Creacion del jugador: Entrada y verificacion del nombre
+void CreatePlayerNameVerification(string* name, Player** player, GuardianNode** guardians)
+{
+	bool askName = true, stopLoop = false;
+	
 	do
 	{
 		if(askName)
@@ -1189,9 +1303,9 @@ void CreatePlayer(GuardianNode** guardians, VillageNode** villages, Player** pla
 			askName = false;
 		}
 		
-		cin >> name;
+		cin >> *name;
 		
-		Guardian* guardianSameName = (*guardians)->SearchGuardian(*guardians, name);
+		Guardian* guardianSameName = (*guardians)->SearchGuardian(*guardians, *name);
 		
 		if(guardianSameName != nullptr) //Ya existe un guardian con el mismo nombre
 		{
@@ -1201,35 +1315,7 @@ void CreatePlayer(GuardianNode** guardians, VillageNode** villages, Player** pla
 			}
 			else
 			{
-				int option = 0;
-				
-				do
-				{
-					cout << "\n\tAdvertencia: Ya existe un guardian con ese nombre, por lo que no podras\n\tseleccionar la aldea de inicio. Indica la accion que deseas realizar;\n\n\t\t* Presiona <0> para cancelar y escribir otro nombre\n\t\t* Presiona <1> para continuar sin cambiar el nombre\n\t\t* Presiona <2> para ver mas informacion del guardian con el mismo nombre\n\n\t\t* Ingresa tu opcion: ";
-					cin >> option;
-					
-					while(option < 0 || option > 2)
-					{
-						cout << "\n\t\t\t* (Error: Opcion invalida) Por favor, selecciona una opcion definida: ";
-						cin >> option;
-					}
-					
-					if(option == 0)
-					{
-						askName = true;
-					}
-					else if(option == 1)
-					{
-						CreatePlayerAssignData(player, guardianSameName);
-						stopLoop = true;
-					}
-					else
-					{
-						guardianSameName->PrintData(true, true, true, true, false);
-						cout << endl;
-					}
-				}
-				while(option != 0 && option != 1);
+				CreatePlayerNameWarning(&askName, player, guardianSameName, &stopLoop);
 			}
 		}
 		else
@@ -1238,48 +1324,65 @@ void CreatePlayer(GuardianNode** guardians, VillageNode** villages, Player** pla
 		}
 	}
 	while(!stopLoop);
+}
+
+//Creacion del jugador: Entrada y verificacion de la aldea
+void CreatePlayerVillageVerification(VillageNode** villages, string* village)
+{
+	int numVillage = 0;
+	(*villages)->PrintJustNames(*villages);
+	cout << endl;
 	
-	if(*player == nullptr) //El player aun no se crea
+	cout << "\n\t* Ingresa el NUMERO de la aldea en la que deseas iniciar: ";
+	cin >> numVillage;
+	
+	Village* villageSelected = (*villages)->SearchVillageByNum(*villages, numVillage);
+	
+	while(villageSelected == nullptr) //La aldea no existe o el numero ingresado no estaba dentro del rango
 	{
-		//Aldea y verificacion
-		int numVillage = 0;
-		(*villages)->PrintJustNames(*villages);
-		cout << endl;
-		
-		cout << "\n\t* Ingresa el NUMERO de la aldea en la que deseas iniciar: ";
+		cout << "\n\t\t* (Error: La aldea no existe o el numero estaba fuera de rango) Por favor, selecciona una aldea de la lista: ";
 		cin >> numVillage;
-		
-		Village* villageSelected = (*villages)->SearchVillageByNum(*villages, numVillage);
+		villageSelected = (*villages)->SearchVillageByNum(*villages, numVillage);
+	}
+	
+	while(villageSelected->GetName() == mainVillage) //La aldea seleccionada no puede ser la aldea principal
+	{
+		cout << "\n\t\t* (Error: La aldea de origen no puede ser " << mainVillage << " ya que es la aldea principal)\n\t\tPor favor, selecciona otra aldea de origen: ";
+		cin >> numVillage;
+		villageSelected = (*villages)->SearchVillageByNum(*villages, numVillage);
 		
 		while(villageSelected == nullptr) //La aldea no existe o el numero ingresado no estaba dentro del rango
 		{
 			cout << "\n\t\t* (Error: La aldea no existe o el numero estaba fuera de rango) Por favor, selecciona una aldea de la lista: ";
-			cin >> village;
-			villageSelected = (*villages)->SearchVillageByNum(*villages, numVillage);
-		}
-		
-		while(villageSelected->GetName() == mainVillage) //La aldea seleccionada no puede ser la aldea principal
-		{
-			cout << "\n\t\t* (Error: La aldea de origen no puede ser " << mainVillage << " ya que es la aldea principal)\n\t\tPor favor, selecciona otra aldea de origen: ";
 			cin >> numVillage;
 			villageSelected = (*villages)->SearchVillageByNum(*villages, numVillage);
-			
-			while(villageSelected == nullptr) //La aldea no existe
-			{
-				cout << "\n\t\t* (Error: La aldea no existe o el numero estaba fuera de rango) Por favor, selecciona una aldea de la lista: ";
-				cin >> numVillage;
-				villageSelected = (*villages)->SearchVillageByNum(*villages, numVillage);
-			}
 		}
-		
-		village = villageSelected->GetName();
+	}
+	
+	*village = villageSelected->GetName();
+}
+
+//Crear jugador
+void CreatePlayer(GuardianNode** guardians, VillageNode** villages, Player** player)
+{
+	cout << "\n\t------------------------- CREACION DE GUARDIAN -------------------------" << endl;
+	string name, village;
+	bool stopLoop = false;
+	
+	
+	CreatePlayerNameVerification(&name, player, guardians); //Entrada y verificacion del nombre
+	
+	if(*player == nullptr) //El player aun no se crea
+	{
+		CreatePlayerVillageVerification(villages, &village); //Entrada y verificacion de la aldea
 		*player = new Player(name, minPower, village);
 	}
 	
 	cout << "\n\t\tPlayer creado\n\n\t\tNombre: " << (*player)->GetName() << "\n\t\tNivel de poder: " << (*player)->GetPower() << "\n\t\tAldea de origen: " << (*player)->GetHomeVillage() << endl;
 }
 
-void MainMenu(GuardianNode** guardians, VillageNode** villages, Player** player)
+//Menu de inicio
+void MainMenu(GuardianNode** guardians, VillageNode** villages, Player** player, bool* endGame)
 {
 	cout << "\n\t---------------------------------------- THE GUARDIAN JOURNEY: EN BUSCA DE LA GLORIA ----------------------------------------\n";
 	cout << "\n\tBienvenido a The Guardian Journey: En busca de la gloria, un juego en el que podras poner a prueba tus habilidades,\n\tenfrentandote a diferentes guardianes con el objetivo de llegar a " << mainVillage << ", la ciudad principal, en donde podras enfrentarte\n\tal maestro supremo y coronarte como el Maestro de los Guardianes. Para ello, deberas recorrer todas las aldeas y ganar\n\tpuntos de poder en enfrentamientos contra los maestros y sus aprendices. Espero que estes listo para comenzar este\n\temocionante viaje, pero antes, debes crear el personaje con el que alcanzaras la gloria. Para ello, selecciona una de\n\tlas siguientes opciones:" << endl;
@@ -1308,65 +1411,210 @@ void MainMenu(GuardianNode** guardians, VillageNode** villages, Player** player)
 	}
 	else
 	{
+		*endGame = true;
 		cout << "\n\t\tCerrando el juego...\n";
 	}
 }
 
-//Crear mapas para el juego
-void GameLoopCreateMaps(unordered_map<string, int>* mapVillageName_Index, unordered_map<int, string>* mapIndex_VillageName, VillageNode** villages, int* count)
-{
-	VillageNode* current = *villages;
+//Inicializacion del juego: Creacion del grafo de aldeas
+void InitializeGame(VillageNode** villages)
+{	
+	//Grafo del juego: Creacion de mapas, creacion de la matriz de adyacencia y conexiones entre las aldeas
+	Graph* villagesGraph = new Graph();
+	villagesGraph->CreateMaps(*villages);
+	villagesGraph->CreateMatrix();
+	villagesGraph->CreateConnections(*villages);
+	villagesGraph->PrintGraph();
 	
-	while(current != nullptr) //Mientras existan aldeas en la lista
+	cout << "\n\tComienza el viaje..." << endl;	
+}
+
+//Menu del juego
+void GameMenu(int* option)
+{
+	cout << "\n\t------------------------------ MENU DE JUEGO ------------------------------" << endl;
+	cout << "\n\tSelecciona la accion que quieres realizar;\n\n\t\t* Presiona <0> para salir del juego\n\t\t* Presiona <1> para entrenar con algun guardian de la aldea\n\t\t* Presiona <2> para ir a otra ciudad\n\n\t\t* Ingresa tu opcion: ";
+
+	cin >> *option;
+	
+	while(*option < 0 || *option > 2)
 	{
-		string name = current->GetVillage()->GetName(); //Nombre de la aldea
-		
-		(*mapVillageName_Index)[name] = *count;
-		(*mapIndex_VillageName)[*count] = name;
-		
-		(*count)++;
-		current = current->GetNext();
+		cout << "\n\t\t\t* (Error: Opcion invalida) Por favor, selecciona una opcion definida: ";
+		cin >> *option;
 	}
+}
+
+//Obtener el guardian mas facil de enfrentar en el modo de entrenamiento
+void TrainingModeGetEasiestGuardian(vector<Guardian*> guardians, Guardian** easiest)
+{
+	for(const auto& guardian : guardians)
+	{
+		if(*easiest == nullptr)
+		{
+			*easiest = guardian;
+		}
+		else
+		{
+			if(guardian->GetPowerLevel() <= (*easiest)->GetPowerLevel())
+			{
+				*easiest = guardian;
+			}
+		}
+	}
+}
+
+//Obtener la probabilidad de victoria en un enfrentamiento
+int TrainingModeGetWinProbability(Guardian* guardian, Player* player)
+{
+	int difference = guardian->GetPowerLevel() - player->GetPower();
+	//int winProbability = 0;
+	
+	if(difference <= 0)
+	{
+		return 100;
+	}
+	else
+	{
+		return 100 - (difference / 2); 
+	}
+}
+
+//Obtener la dificultad de un enfrentamiento
+string TrainingModeGetDifficulty(int winProbability)
+{
+	if(winProbability >= 90)
+	{
+		return "Facil";
+	}
+	else if(winProbability >= 80)
+	{
+		return "Media";
+	}
+	else if(winProbability >= 70)
+	{
+		return "Dificil";
+	}
+	else
+	{
+		return "Imposible";
+	}
+}
+
+//Menu de accion al momento de seleccionar un oponente
+int TrainingModeOpponentSelection()
+{
+	int option = 0;
+	
+	cout << "\n\t------------------------- MENU DE ACCIONES -------------------------" << endl;
+	cout << "\n\t\t* Presiona <1> para aceptar la sugerencia de combate\n\t\t* Presiona <2> para seleccionar el guardian que quieras\n\n\t\t* Ingresa tu opcion: ";
+	cin >> option;
+	
+	while(option != 1 && option != 2)
+	{
+		cout << "\n\t\t\t* (Error: Opcion invalida) Por favor, selecciona una opcion definida: ";
+		cin >> option;
+	}
+	
+	return option;
+}
+
+//Imprimir los guardianes a los que se puede enfrentar el player
+void TrainingModePrintGuardians(Village* village, Player* player, Guardian* master, int* selection, Guardian** opponent)
+{
+	vector<Guardian*> guardians = village->GetGuardians();
+	int count = 1, suggestedOpponent = 0;
+	Guardian* easiest = nullptr;
+	Guardian* tempOpponent = nullptr;
+	
+	TrainingModeGetEasiestGuardian(guardians, &easiest); //Se obtiene el guardian mas facil de enfrentar
+	cout << "\n\tGuardianes:\n" << endl;
+	
+	for(const auto& guardian : guardians)
+	{
+		int winProbability = TrainingModeGetWinProbability(guardian, player); //Probabilidad de victoria
+		string difficulty = TrainingModeGetDifficulty(winProbability);
+		
+		if(guardian == master)
+		{
+			cout << "\t- Guardian " << count << ": " << guardian->GetName() << " --- Probabilidad de vencerlo: " << winProbability << "% --- Dificultad: " << difficulty << " (Maestro de la aldea)" << endl;
+		}
+		else if(guardian == easiest)
+		{
+			cout << "\t- Guardian " << count << ": " << guardian->GetName() << " --- Probabilidad de vencerlo: " << winProbability << "% --- Dificultad: " << difficulty << " (Sugerencia para enfrentamiento)" << endl;
+			suggestedOpponent = count;
+			tempOpponent = guardian;
+		}
+		else
+		{
+			cout << "\t- Guardian " << count << ": " << guardian->GetName() << " --- Probabilidad de vencerlo: " << winProbability << "% --- Dificultad: " << difficulty<< endl;
+		}
+		
+		count++;
+	}
+	
+	if(TrainingModeOpponentSelection() == 1) //El jugador acepto la sugerencia de combate
+	{
+		*opponent = tempOpponent;
+		*selection = suggestedOpponent;
+	}
+}
+
+//Modo de entrenamiento
+void TrainingMode(Village* village, Player** player)
+{
+	cout << "\n\t----------------------------------- ENTRENAMIENTO -----------------------------------" << endl;
+	cout << "\n\tEntrenar aumenta tus puntos de poder de la siguiente manera:\n\n\t\t- Obtienes +1 punto si derrotas un aprendiz\n\t\t- Obtienes +2 puntos si derrotas al maestro de la aldea\n\n\t* Consideraciones:\n\n\t\t1. Dependiendo de los puntos de poder de cada guardian el enfrentamiento\n\t\ttendra una dificultad y una probabilidad de ganar\n\t\t2. El maximo de puntos seguidos que puedes alcanzar en una aldea son 4\n\n\tCon eso en mente, puedes continuar;" << endl;
+	string name = village->GetName();
+	int numGuardians = village->GetNumGuardians(), guardianSelection = -1;
+	Guardian* opponent = nullptr;
+	
+	cout << "\n\tAldea actual: " << name;
+	TrainingModePrintGuardians(village, *player, village->GetMainMaster(), &guardianSelection, &opponent);
+	
+	if(guardianSelection == -1) //El jugador no acepto la sugerencia de combate
+	{
+		cout << "\n\t* Ingresa el NUMERO del guardian con el que deseas entrenar: ";
+		cin >> guardianSelection;
+		
+		while(guardianSelection <= 0 || guardianSelection > numGuardians)
+		{
+			cout << "\n\t\t* (Error: Opcion fuera de rango) Por favor, selecciona un guardian de la lista: ";
+			cin >> guardianSelection;
+		}
+		
+		opponent = village->SearchGuardianByIndex(guardianSelection);
+	}
+	
+	cout << "\n\t* Tu oponente es " << opponent->GetName() << " *\n\t* Entrando en la arena de entrenamiento *\n\t* Enfrentamiento en curso... *\n\t* Obteniendo resultados del enfrentamiento... *" << endl;
+}
+
+//Viajar a otra aldea
+void TravelToVillage()
+{
+	cout << "\n\t------------------------- VIAJE A OTRA ALDEA -------------------------" << endl;
 }
 
 //Loop del juego
 void GameLoop(GuardianNode** guardians, VillageNode** villages, Player** player)
 {
-	int numVillages = 0;
-	unordered_map<string, int> mapVillageName_Index; //Mapa: Nombre de aldeas --- Indice en la matriz de adyacencia
-	unordered_map<int, string> mapIndex_VillageName; //Mapa: Indice en la matriz de adyacencia --- Nombre de aldeas
+	InitializeGame(villages); //Inicializacion del juego (Grafo)
 	
-	GameLoopCreateMaps(&mapVillageName_Index, &mapIndex_VillageName, villages, &numVillages);
-	Graph* villagesGraph = new Graph(numVillages);
-	villagesGraph->CreateMatrix();
-	villagesGraph->CreateConnections(mapVillageName_Index, mapIndex_VillageName, *villages);
-	villagesGraph->PrintGraph();
-	
-	cout << "\n\tComienza el viaje..." << endl;
 	bool stopGame = false;
+	int option = 0;
 	
 	do
 	{
-		cout << "\n\t------------------------------ MENU DE JUEGO ------------------------------" << endl;
-		cout << "\n\tSelecciona la accion que quieres realizar;\n\n\t\t* Presiona <0> para salir del juego\n\t\t* Presiona <1> para entrenar con algun guardian de la aldea\n\t\t* Presiona <2> para ir a otra ciudad\n\n\t\t* Ingresa tu opcion: ";
-	
-		int option = 0;
+		GameMenu(&option); //Menu del juego, entrada y validacion
 		
-		cin >> option;
+		Village* currentVillage = (*villages)->SearchVillage(*villages, (*player)->GetCurrentVillage()); //Se obtiene la aldea actual en la que esta el jugador
 		
-		while(option < 0 || option > 2)
+		if(option == 1) //Entrenamiento
 		{
-			cout << "\n\t\t\t* (Error: Opcion invalida) Por favor, selecciona una opcion definida: ";
-			cin >> option;
+			TrainingMode(currentVillage, player);
 		}
-		
-		if(option == 1)
+		else if(option == 2) //Ir a otra aldea
 		{
-			
-		}
-		else if(option == 2)
-		{
-			
+			TravelToVillage();
 		}
 		else
 		{
@@ -1375,18 +1623,6 @@ void GameLoop(GuardianNode** guardians, VillageNode** villages, Player** player)
 		}
 	}
 	while(!stopGame);
-
-	/*
-	cout << "\n\tMapa Indice-Aldea:\n" << endl;
-	
-	for(const auto& pair : mapIndex_VillageName)
-	{
-		int index = pair.first;
-		const string& village = pair.second;
-		
-		cout << "\t- Indice " << index << ": " << village << endl;
-	}
-	*/	
 }
 
 /*Imprimir cola de guardianes
