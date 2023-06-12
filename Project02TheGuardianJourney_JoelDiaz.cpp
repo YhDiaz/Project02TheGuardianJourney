@@ -302,6 +302,21 @@ class Village
 			}
 		}
 		
+		string SearchVillageByIndex(int index)
+		{
+			int count = 1;
+			
+			for(const auto& village : adjacentVillagesNames_)
+			{
+				if(index == count)
+				{
+					return village;
+				}
+				
+				count++;
+			}
+		}
+		
 		//Setters
 		void SetName(string name)
 		{
@@ -774,19 +789,50 @@ void VillagesFileConnectionsValidation(VillageNode*, bool*); //Validacion de la 
 void ReadVillagesFileInLoopValidations(bool*, VillageNode**, string, string, int*, int, string); //Validaciones en el loop de la lectura de aldeas
 void ReadVillagesFilePostLoopValidations(bool, int, bool*, VillageNode*); //Validaciones post ciclo de lectura de aldeas
 void ReadVillagesFile(VillageNode**, bool*); //Leer archivo de aldeas
-
-//VERIFICAR
-//void ReadGuardiansFileInLoopValidations();
-//void ReadGuardiansFilePostLoopValidations();
-
+void MainMasterNoMasterValidation(bool*, string, int, string, string); //Validacion 1 (Maestro principal): No debe tener maestro
+void MainMasterPowerRangeValidation(bool*, int, int, string, string); //Validacion 2 (Maestro principal): Poder dentro del rango
+void MainMasterInMainVillageValidation(bool*, string, int, string); //Validacion 3 (Maestro principal): Debe estar en la aldea principal
+void ReadGuardiansFileMainMasterValidations(int, string, string, int, string, string, bool*, GuardianNode**, VillageNode**); //Validaciones del maestro principal
+void GuardiansNameExistsValidation(bool*, Guardian*, string, int, string); //Validacion 1 (Guardianes): El nombre ya existe
+void GuardiansMastersExistenceValidation(bool*, Guardian*, string, string, int, string); //Validacion 2 (Guardianes): El maestro no existe
+void GuardiansMasterPowerValidation(bool*, Guardian*, string, string, int, string); //Validacion 3 (Guardianes): El maestro tiene el puntaje minimo de poder
+void GuardiansPowerComparisonValidation(bool*, Guardian*, int, int, string, string); //Validacion 4 (Guardianes): Los puntos del aprendiz no pueden superar los del maestro
+void GuardiansMainVillageValidation(bool*, string, int, string, string); //Validacion 5 (Guardianes): La aldea no puede ser la aldea principal
+void GuardiansVillagesExistenceValidation(bool*, Village*, string, string, int, string); //Validacion 6 (Guardianes): Existencia de la aldea
+void GuardiansMinPowerValidation(bool*, int, int, string, string); //Validacion 7 (Guardianes): Minimo de puntos de poder
+void ReadGuardiansFileGuardiansValidations(bool*, Guardian*, string, int, string, Guardian*, string, int, string, Village*); //Validaciones del resto de guardianes
+void ReadGuardiansFileInLoopValidations(int, string, string, int, string, string, bool*, GuardianNode**, VillageNode**); //Validaciones durante el ciclo de lectura del archivo de guardianes
+void GuardiansMasterAndApprenticeValidation(bool*, VillageNode*); //Validacion: Minimo 1 maestro y su aprendiz por aldea
+void ReadGuardiansFilePostLoopValidations(VillageNode**, bool*); //Validaciones post ciclo de lectura del archivo de guardianes
 void ReadGuardiansFile(GuardianNode**, VillageNode*, bool*); //Leer archivo de guardianes
 void FilesInfo(); //Informacion sobre el contenido de los archivos en caso de falla en la lectura
 void ReadFiles(GuardianNode**, VillageNode**, bool*); //Leer archivos
+void MainMenuSelection(int*, bool*); //Menu de seleccion
+void MainMenuPostSelection(int, bool*, bool*); //Menu post seleccion
 
-void MainMenu(GuardianNode**, VillageNode**, Player**, bool*);
-void GameLoop(GuardianNode**, VillageNode**, Player**);
-//void PrintGuardianQueue(queue<Guardian> guardians); //Imprimir cola de guardianes
-//void PrintVillagesQueue(queue<Village> villages); //Imprimir cola de aldeas
+//FALTA AGREGAR ESTA FUNCIONALIDAD Y SUS RELACIONADOS
+	void SelectPlayer(GuardianNode**, VillageNode**, Player**); //Seleccionar guardian como jugador
+//HASTA AQUI
+
+void CreatePlayerAssignData(Player**, Guardian*); //Asignacion de datos al crear un jugador
+void CreatePlayerNameWarning(bool*, Player**, Guardian*, bool*); //Advertencia al crear un jugador: Hay un guardian con el mismo nombre
+void CreatePlayerNameVerification(string*, Player**, GuardianNode**); //Creacion del jugador: Entrada y verificacion del nombre
+void CreatePlayerVillageVerification(VillageNode**, string*); //Creacion del jugador: Entrada y verificacion de la aldea
+void CreatePlayer(GuardianNode**, VillageNode**, Player**); //Crear jugador
+void MainMenu(GuardianNode**, VillageNode**, Player**, bool*); //Menu de inicio
+void InitializeGame(VillageNode**); //Inicializacion del juego: Creacion del grafo de aldeas
+void GameMenu(int*); //Menu del juego
+void TrainingModeGetEasiestGuardian(vector<Guardian*>, Guardian**); //Obtener el guardian mas facil de enfrentar en el modo de entrenamiento
+int TrainingModeGetWinProbability(Guardian*, Player*); //Obtener la probabilidad de victoria en un enfrentamiento
+string TrainingModeGetDifficulty(int); //Obtener la dificultad de un enfrentamiento
+int TrainingModeOpponentSelection(); //Menu de accion al momento de seleccionar un oponente
+void TrainingModePrintGuardians(Village*, Player*, Guardian*, int*, Guardian**); //Imprimir los guardianes a los que se puede enfrentar el player
+void TrainingModeDiceRoll(vector<int>*, int); //Lanzamiento de dados para saber el resultado del enfrentamiento
+void TrainingModeShowdownResult(vector<int>, Guardian*, Player**, bool); //Resultado del enfrentamiento
+void TrainingModeGuardiansShowdown(Guardian*, Player**, bool); //Enfrentamiento de guardianes
+void TrainingMode(Village*, Player**); //Modo de entrenamiento
+void TravelToVillage(Village*, VillageNode*, Player**); //Viajar a otra aldea
+void GameLoop(GuardianNode**, VillageNode**, Player**); //Loop del juego
 
 int main()
 {
@@ -944,122 +990,167 @@ void ReadVillagesFile(VillageNode** villagesList, bool* successRead)
 	}
 }
 
+//TRABAJANDO AQUI
+
+//Validacion 1 (Maestro principal): No debe tener maestro
+void MainMasterNoMasterValidation(bool* successRead, string master, int countLines, string filename, string name)
+{
+	if(master != "")
+	{
+		cout << "\n\t* El maestro principal no debe tener maestro (Linea " << countLines << " en el archivo " << filename << ", " << master << " no puede ser maestro de " << name << " ya que es el maestro principal) *" <<  endl;
+		*successRead = false;
+	}
+}
+
+//Validacion 2 (Maestro principal): Poder dentro del rango
+void MainMasterPowerRangeValidation(bool* successRead, int power, int countLines, string filename, string name)
+{
+	if(*successRead) //El poder no pasa del maximo
+	{
+		if(power > maxPower)
+		{
+			cout << "\n\t* El poder de un guardian no puede ser mayor a " << maxPower << " (Linea " << countLines << " en el archivo " << filename << ", " << name << " tiene " << power << " puntos de poder) *" << endl;
+			*successRead = false;
+		}
+	}
+	
+	if(*successRead) //El poder no pasa del minimo
+	{
+		if(power < minPowerMainMaster)
+		{
+			cout << "\n\t* El poder del maestro principal no puede ser menor a " << minPowerMainMaster << " (Linea " << countLines << " en el archivo " << filename << ", " << name << " tiene " << power << " puntos de poder) *" << endl;
+			*successRead = false;
+		}
+	}
+}
+
+//Validacion 3 (Maestro principal): Debe estar en la aldea principal
+void MainMasterInMainVillageValidation(bool* successRead, string village, int countLines, string filename)
+{
+	if(*successRead) //La aldea principal es la ciudad del maestro principal
+	{
+		if(village != mainVillage)
+		{
+			cout << "\n\t* El maestro principal debe estar en " << mainVillage << " (Linea " << countLines << " en el archivo " << filename << ", la aldea del maestro principal es " << village << ") *" <<  endl;
+			*successRead = false;
+		}
+	}
+}
+
+//Validaciones del maestro principal
+void ReadGuardiansFileMainMasterValidations(int countLines, string filename, string name, int power, string master, string village, bool* successRead, GuardianNode** guardians, VillageNode** villages)
+{
+	MainMasterNoMasterValidation(successRead, master, countLines, filename, name); //Validacion 1: El maestro principal no debe tener maestro
+	MainMasterPowerRangeValidation(successRead, power, countLines, filename, name); //Validacion 2: Rango de poder
+	MainMasterInMainVillageValidation(successRead, village, countLines, filename); //Validacion 3: Esta en la aldea principal
+}
+
+//Validacion 1 (Guardianes): El nombre ya existe
+void GuardiansNameExistsValidation(bool* successRead, Guardian* nameExist, string name, int countLines, string filename)
+{
+	if(nameExist != nullptr)
+	{
+		cout << "\n\t* El nombre \"" << name << "\" ya esta en uso, modifiquelo e intente nuevamente (Linea " << countLines << " en el archivo " << filename << ", el nombre del guardian ya esta en uso) *" << endl; 
+		*successRead = false;
+	}
+}
+
+//Validacion 2 (Guardianes): El maestro no existe
+void GuardiansMastersExistenceValidation(bool* successRead, Guardian* myMaster, string name, string master, int countLines, string filename)
+{
+	if(*successRead && myMaster == nullptr)
+	{
+		cout << "\n\t* El maestro de " << name << " (" << master << ") no existe (Linea " << countLines << " en el archivo " << filename << ") *" << endl;
+		*successRead = false;
+	}
+}
+
+//Validacion 3 (Guardianes): El maestro tiene el puntaje minimo de poder
+void GuardiansMasterPowerValidation(bool* successRead, Guardian* myMaster, string name, string master, int countLines, string filename)
+{
+	if(*successRead && myMaster->GetPowerLevel() == minPower)
+	{
+		cout << "\n\t* El maestro de " << name << " (" << master << ") tiene la cantidad minima de puntos de poder (" << minPower << "). Verifique e intente de nuevo (Linea " << countLines << " en el archivo " << filename << ") *" << endl;
+		*successRead = false;
+	}
+}
+
+//Validacion 4 (Guardianes): Los puntos del aprendiz no pueden superar los del maestro
+void GuardiansPowerComparisonValidation(bool* successRead, Guardian* myMaster, int power, int countLines, string filename, string name)
+{
+	if(*successRead && myMaster->GetPowerLevel() <= power)
+	{
+		cout << "\n\t* El nivel de poder de un aprendiz no puede ser mayor o igual que el de su maestro (Linea " << countLines << " en el archivo " << filename << ", el poder de " << name << " (" << power << ") es mayor o igual que el de su maestro " << myMaster->GetName() << "(" << myMaster->GetPowerLevel() << ")) *" << endl;
+		*successRead = false;
+	}
+}
+
+//Validacion 5 (Guardianes): La aldea no puede ser la aldea principal
+void GuardiansMainVillageValidation(bool* successRead, string village, int countLines, string filename, string name)
+{
+	if(*successRead && village == mainVillage)
+	{
+		cout << "\n\t* Un guardian que no sea el maestro principal no puede estar en la aldea principal (Linea " << countLines << " en el archivo " << filename << ", " << name << " esta en la aldea principal (" << mainVillage << ")) *" << endl;
+		*successRead = false;
+	}
+}
+
+//Validacion 6 (Guardianes): Existencia de la aldea
+void GuardiansVillagesExistenceValidation(bool* successRead, Village* myVillage, string name, string village, int countLines, string filename)
+{
+	if(*successRead && myVillage == nullptr)
+	{
+		cout << "\n\t* La aldea de " << name << " (" << village << ") no existe (Linea " << countLines << " en el archivo " << filename << ", verifique e intente nuevamente) *" << endl;
+		*successRead = false;
+	}
+}
+
+//Validacion 7 (Guardianes): Minimo de puntos de poder
+void GuardiansMinPowerValidation(bool* successRead, int power, int countLines, string filename, string name)
+{
+	if(*successRead && power < minPower)
+	{
+		cout << "\n\t* El minimo de puntos de poder es " << minPower << " (Linea " << countLines << " en el arhivo " << filename << ", " << name << " tiene " << power << " puntos de poder) *" << endl;
+		*successRead = false;
+	}
+}
+
+//Validaciones del resto de guardianes
+void ReadGuardiansFileGuardiansValidations(bool* successRead, Guardian* nameExist, string name, int countLines, string filename, Guardian* myMaster, string master, int power, string village, Village* myVillage)
+{
+	GuardiansNameExistsValidation(successRead, nameExist, name, countLines, filename); //Validacion 1: El nombre ya existe
+	GuardiansMastersExistenceValidation(successRead, myMaster, name, master, countLines, filename); //Validacion 2: Existencia del maestro
+	GuardiansMasterPowerValidation(successRead, myMaster, name, master, countLines, filename); //Validacion 3: Poder del maestro
+	GuardiansPowerComparisonValidation(successRead, myMaster, power, countLines, filename, name); //Validacion 4: Comparacion de poder entre un aprendiz y su maestro
+	GuardiansMainVillageValidation(successRead, village, countLines, filename, name); //Validacion 5: El guardian no puede estar en la aldea principal
+	GuardiansVillagesExistenceValidation(successRead, myVillage, name, village, countLines, filename); //Validacion 6: Existencia de la aldea
+	GuardiansMinPowerValidation(successRead, power, countLines, filename, name); //Validacion 7: Minimo de puntos de poder
+}
+
+//Validaciones durante el ciclo de lectura del archivo de guardianes
 void ReadGuardiansFileInLoopValidations(int countLines, string filename, string name, int power, string master, string village, bool* successRead, GuardianNode** guardians, VillageNode** villages)
 {
 	GuardianNode* tempGuardians = *guardians;
 	VillageNode* tempVillages = *villages;
 	
-	//Validaciones maestro principal
-	if(countLines == 2) //Validacion 1: No tiene maestro
+	if(countLines == 2) //Validaciones maestro principal
 	{
-		if(master != "")
-		{
-			cout << "\n\t* El maestro principal no debe tener maestro (Linea " << countLines << " en el archivo " << filename << ", " << master << " no puede ser maestro de " << name << " ya que es el maestro principal) *" <<  endl;
-			*successRead = false;
-			//validation = false;
-		}
+		ReadGuardiansFileMainMasterValidations(countLines, filename, name, power, master, village, successRead, guardians, villages);
 		
-		if(*successRead) //Validacion 2: El poder no pasa del maximo
-		{
-			if(power > maxPower)
-			{
-				cout << "\n\t* El poder de un guardian no puede ser mayor a " << maxPower << " (Linea " << countLines << " en el archivo " << filename << ", " << name << " tiene " << power << " puntos de poder) *" << endl;
-				*successRead = false;
-				//validation = false;
-			}
-		}
-		
-		if(*successRead) //Validacion 3: El poder no pasa del minimo
-		{
-			if(power < minPowerMainMaster)
-			{
-				cout << "\n\t* El poder del maestro principal no puede ser menor a " << minPowerMainMaster << " (Linea " << countLines << " en el archivo " << filename << ", " << name << " tiene " << power << " puntos de poder) *" << endl;
-				*successRead = false;
-				//validation = false;
-			}
-		}
-		
-		if(*successRead) //Validacion 4: La aldea principal es la ciudad del maestro principal
-		{
-			if(village != mainVillage)
-			{
-				cout << "\n\t* El maestro principal debe estar en " << mainVillage << " (Linea " << countLines << " en el archivo " << filename << ", la aldea del maestro principal es " << village << ") *" <<  endl;
-				*successRead = false;
-				//validation = false;
-			}
-		}
-		
-		if(*successRead)
+		if(*successRead) //Si todas las validaciones resultaron bien, se agrega el guardian
 		{
 			tempGuardians->AddGuardianNode(guardians, name, power, master, village);
 		}
 	}
-	//Validaciones del resto de guardianes
-	else
+	else //Validaciones del resto de guardianes
 	{
 		Guardian* myMaster = tempGuardians->SearchGuardian(*guardians, master);
 		Village* myVillage = tempVillages->SearchVillage(*villages, village);
 		Guardian* nameExist = tempGuardians->SearchGuardian(*guardians, name);
 		
-		if(nameExist != nullptr) //Validacion 1: El nombre ya existe
-		{
-			cout << "\n\t* El nombre \"" << name << "\" ya esta en uso, modifiquelo e intente nuevamente (Linea " << countLines << " en el archivo " << filename << ", el nombre del guardian ya esta en uso) *" << endl; 
-			//validation = false;
-			*successRead = false;
-		}
+		ReadGuardiansFileGuardiansValidations(successRead, nameExist, name, countLines, filename, myMaster, master, power, village, myVillage);
 		
-		if(*successRead && myMaster == nullptr) //Validacion 2: El maestro existe
-		{
-			cout << "\n\t* El maestro de " << name << " (" << master << ") no existe (Linea " << countLines << " en el archivo " << filename << ") *" << endl;
-			//validation= false;
-			*successRead = false;
-		}
-		
-		if(*successRead && myMaster->GetPowerLevel() == minPower) //Validacion 3: El maestro tiene el puntaje minimo de poder
-		{
-			cout << "\n\t* El maestro de " << name << " (" << master << ") tiene la cantidad minima de puntos de poder (" << minPower << "). Verifique e intente de nuevo (Linea " << countLines << " en el archivo " << filename << ") *" << endl;
-			//validation= false;
-			*successRead = false;
-		}
-		
-		if(*successRead && myMaster->GetPowerLevel() <= power) //Validacion 4: Los puntos del aprendiz no pueden superar los del maestro
-		{
-			cout << "\n\t* El nivel de poder de un aprendiz no puede ser mayor o igual que el de su maestro (Linea " << countLines << " en el archivo " << filename << ", el poder de " << name << " (" << power << ") es mayor o igual que el de su maestro " << myMaster->GetName() << "(" << myMaster->GetPowerLevel() << ")) *" << endl;
-			//validation= false;
-			*successRead = false;
-		}
-	
-		if(*successRead) //Validacion 5: La aldea no puede ser la aldea principal
-		{
-			if(village == mainVillage)
-			{
-				cout << "\n\t* Un guardian que no sea el maestro principal no puede estar en la aldea principal (Linea " << countLines << " en el archivo " << filename << ", " << name << " esta en la aldea principal (" << mainVillage << ")) *" << endl;
-				//validation = false;
-				*successRead = false;
-			}
-		}
-		
-		if(*successRead) //Validacion 6: La aldea debe existir
-		{
-			if(myVillage == nullptr)
-			{
-				cout << "\n\t* La aldea de " << name << " (" << village << ") no existe (Linea " << countLines << " en el archivo " << filename << ", verifique e intente nuevamente) *" << endl;
-				//validation = false;
-				*successRead = false;
-			}
-		}
-		
-		if(*successRead) //Validacion 7: Puntos minimo de poder
-		{
-			if(power < minPower)
-			{
-				cout << "\n\t* El minimo de puntos de poder es " << minPower << " (Linea " << countLines << " en el arhivo " << filename << ", " << name << " tiene " << power << " puntos de poder) *" << endl;
-				//validation = false;
-				*successRead = false;
-			}
-		}
-		
-		if(*successRead)
+		if(*successRead) //Todas las validaciones resultaron bien
 		{
 			tempGuardians->AddGuardianNode(guardians, name, power, master, village); //Se agrega el guardian a la lista
 			
@@ -1072,11 +1163,56 @@ void ReadGuardiansFileInLoopValidations(int countLines, string filename, string 
 	}
 }
 
-/*
-void ReadGuardiansFilePostLoopValidations()
+//Validacion: Minimo 1 maestro y su aprendiz por aldea
+void GuardiansMasterAndApprenticeValidation(bool* successRead, VillageNode* current)
 {
+	//Validacion 2: Minimo 1 maestro y su aprendiz por aldea
+	Guardian* villageMainMaster = current->GetVillage()->GetMainMaster();
+	string masterName = villageMainMaster->GetName();
+	bool masterHasAnApprentice = false;
 	
-}*/
+	for(const auto& guardian : current->GetVillage()->GetGuardians()) //Busqueda en la lista de guardianes de la aldea
+	{
+		if(guardian != villageMainMaster) //Se cicla por todos los guardianes de la aldea, excepto el maestro
+		{
+			if(guardian->GetMainMasterName() == masterName)
+			{
+				masterHasAnApprentice = true;
+			}
+		}
+	}
+	
+	if(!masterHasAnApprentice)
+	{
+		cout << "\n\t* Todas las aldeas deben tener como minimo 1 maestro y su aprendiz (El/La maestro/maestra " << masterName << " de " << current->GetVillage()->GetName() << " no tiene aprendices, modifique e intente de nuevo) *";
+		*successRead = false;
+	}
+}
+
+//Validaciones post ciclo de lectura del archivo de guardianes
+void ReadGuardiansFilePostLoopValidations(VillageNode** villages, bool* successRead)
+{
+	VillageNode* current = *villages;
+	
+	while(current != nullptr && *successRead)
+	{
+		if(current->GetVillage()->GetName() != mainVillage) //La aldea no es la principal (La aldea principal es la unica que tiene 1 guardian)
+		{
+			if(current->GetVillage()->GetNumGuardians() >= minGuardiansPerVillage) //Validacion 1: Minimo de guardianes por aldea
+			{
+				GuardiansMasterAndApprenticeValidation(successRead, current); //Validacion 2: Debe haber minimo 1 maestro y su aprendiz en la aldea
+			}
+			else
+			{
+				cout << "\n\t\t" << current->GetVillage()->GetNumGuardians() << endl;
+				cout << "\n\t* Una aldea debe tener como minimo " << minGuardiansPerVillage << " guardianes (Verifique la cantidad de guardianes de " << current->GetVillage()->GetName() << " e intente nuevamente) *" << endl;
+				*successRead = false;
+			}
+		}
+		
+		current = current->GetNext();
+	}
+}
 
 //Leer archivo de guardianes
 void ReadGuardiansFile(GuardianNode** guardians, VillageNode** villages, bool* successRead)
@@ -1106,48 +1242,7 @@ void ReadGuardiansFile(GuardianNode** guardians, VillageNode** villages, bool* s
 			ReadGuardiansFileInLoopValidations(countLines, filename, name, stoi(power), master, village, successRead, guardians, villages);
 		}
 		
-		//Validacion 1: Minimo de guardianes por aldea
-		VillageNode* current = *villages;
-		
-		while(current != nullptr && *successRead)
-		{
-			if(current->GetVillage()->GetName() != mainVillage) //La aldea no es la principal (La aldea principal es la unica que tiene 1 guardian)
-			{
-				if(current->GetVillage()->GetNumGuardians() >= minGuardiansPerVillage) //La aldea tiene el minimo de guardianes por aldea
-				{
-					//Validacion 2: Minimo 1 maestro y su aprendiz por aldea
-					Guardian* villageMainMaster = current->GetVillage()->GetMainMaster();
-					string masterName = villageMainMaster->GetName();
-					bool masterHasAnApprentice = false;
-					
-					for(const auto& guardian : current->GetVillage()->GetGuardians()) //Busqueda en la lista de guardianes de la aldea
-					{
-						if(guardian != villageMainMaster) //Se cicla por todos los guardianes de la aldea, excepto el maestro
-						{
-							if(guardian->GetMainMasterName() == masterName)
-							{
-								masterHasAnApprentice = true;
-							}
-						}
-					}
-					
-					if(!masterHasAnApprentice)
-					{
-						cout << "\n\t* Todas las aldeas deben tener como minimo 1 maestro y su aprendiz (El/La maestro/maestra " << masterName << " de " << current->GetVillage()->GetName() << " no tiene aprendices, modifique e intente de nuevo) *";
-						*successRead = false;
-					}						
-				}
-				else
-				{
-					cout << "\n\t\t" << current->GetVillage()->GetNumGuardians() << endl;
-					cout << "\n\t* Una aldea debe tener como minimo " << minGuardiansPerVillage << " guardianes (Verifique la cantidad de guardianes de " << current->GetVillage()->GetName() << " e intente nuevamente) *" << endl;
-					*successRead = false;
-				}
-			}
-			
-			current = current->GetNext();
-		}
-		
+		ReadGuardiansFilePostLoopValidations(villages, successRead);
 		file.close();
 	}
 	else
@@ -1187,8 +1282,6 @@ void ReadFiles(GuardianNode** guardians, VillageNode** villagesList, bool* succe
 		FilesInfo();
 	}
 }
-
-//AGREGAR LAS SIGUIENTES FUNCIONES A LA PARTE DE ARRIBA
 
 //Menu de seleccion
 void MainMenuSelection(int* option, bool* selection)
@@ -1242,11 +1335,15 @@ void MainMenuPostSelection(int option, bool* selection, bool* stopLoop)
 	}
 }
 
+//AGREGAR LAS SIGUIENTES FUNCIONES A LA PARTE DE ARRIBA
+
 //Seleccionar guardian como jugador
 void SelectPlayer(GuardianNode** guardians, VillageNode** villages, Player** player)
 {
 	
 }
+
+//HASTA AQUI
 
 //Asignacion de datos al crear un jugador
 void CreatePlayerAssignData(Player** player, Guardian* guardian)
@@ -1617,8 +1714,6 @@ void TrainingModeShowdownResult(vector<int> winningNumbers, Guardian* opponent, 
 		}
 	}
 	
-//cout << "\n\tResultado del dado: " << dice;
-	
 	if(playerWin)
 	{
 		cout << "\n\t\t* Felicidades!! Has derrotado a " << opponent->GetName() << " por lo que has ganado " << victoryPoints << " puntos *" << endl;
@@ -1654,13 +1749,6 @@ void TrainingModeGuardiansShowdown(Guardian* opponent, Player** player, bool mas
 	{
 		TrainingModeDiceRoll(&winningNumbers, impossibleNums);
 	}
-	
-/*
-	cout << "\n\tNumeros ganadores: ";
-	for(const auto& num : winningNumbers)
-	{
-		cout << num << " ";
-	}*/
 	
 	TrainingModeShowdownResult(winningNumbers, opponent, player, master);
 }
@@ -1702,9 +1790,37 @@ void TrainingMode(Village* village, Player** player)
 }
 
 //Viajar a otra aldea
-void TravelToVillage()
+void TravelToVillage(Village* currentVillage, VillageNode* villages, Player** player)
 {
-	cout << "\n\t------------------------- VIAJE A OTRA ALDEA -------------------------" << endl;
+	cout << "\n\t----------------------------------- VIAJE A OTRA ALDEA -----------------------------------" << endl;
+	cout << "\n\tViajar a otra aldea te permite enfrentarte a otros guardianes y completar el viaje entre\n\taldeas, requisito necesario para llegar a " << mainVillage << " y enfrentarte al maestro supremo y\n\tobtener el titulo de Maestro de los guardianes. Ademas, cada vez que visitas una aldea\n\tobtienes +1 punto de poder por lo que es una buena opcion si no puedes derrotar a algun\n\tmaestro mas fuerte.\n\n\t* Consideracion: Solo puedes moverte entre aldeas que estan conectadas\n\n\tAhora puedes continuar con la seleccion de la aldea a la que quieres viajar;" << endl;
+	
+	vector<string> adjacentVillages = currentVillage->GetAdjacentVillagesNames();
+	cout << "\n\tAldea actual: " << currentVillage->GetName();
+	cout << "\n\tAldeas a las que puedes viajar:\n" << endl;
+	int count = 1, numVillages = currentVillage->GetNumAdjacentVillages();
+	
+	for(const auto& village : adjacentVillages)
+	{
+		cout << "\t- Aldea " << count << ": " << village << endl;
+		count++;
+	}
+	
+	int option = 0;
+	
+	cout << "\n\t* Ingresa el NUMERO de la aldea a la que quieres viajar: ";
+	cin >> option;
+	
+	while(option <= 0 || option > numVillages)
+	{
+		cout << "\n\t\t* (Error: Aldea fuera de rango) Por favor, selecciona una aldea que este dentro del rango: ";
+		cin >> option;
+	}
+	
+	string newVillageName = currentVillage->SearchVillageByIndex(option);
+	Village* newVillage = villages->SearchVillage(villages, newVillageName);
+	cout << "\n\t* Viajando a " << newVillageName << " *\n\t* Has llegado a " << newVillageName << " y has obtenido 1 punto!! *" << endl;
+	(*player)->SetCurrentVillage(newVillageName);
 }
 
 //Loop del juego
@@ -1727,7 +1843,7 @@ void GameLoop(GuardianNode** guardians, VillageNode** villages, Player** player)
 		}
 		else if(option == 2) //Ir a otra aldea
 		{
-			TravelToVillage();
+			TravelToVillage(currentVillage, *villages, player);
 		}
 		else
 		{
@@ -1738,55 +1854,3 @@ void GameLoop(GuardianNode** guardians, VillageNode** villages, Player** player)
 	while(!stopGame);
 }
 
-/*Imprimir cola de guardianes
-void PrintGuardianQueue(queue<Guardian> guardians)
-{
-	queue<Guardian> temp = guardians; //Copia de la cola de guardianes
-	
-	cout << "\n\tLista de guardianes:\n" << endl;
-	int count = 1;
-	
-	while(!temp.empty()) //Mientras la copia tenga elementos, se muestran
-	{
-	  	Guardian guardian = temp.front(); //Se obtiene el elemento que esta al frente en la cola	
-	  	cout << "\n\tGuardian " << count << "\n\n\t\t- Nombre: " << guardian.GetName() << "\n\t\t- Nivel de poder: " << guardian.GetPowerLevel();
-    	
-    	if(guardian.GetMainMasterName() == "") //El maestro mas poderoso no tiene maestro
-    	{
-    		cout << "\n\t\t- Maestro: No tiene, es el maestro principal";
-		}
-		else
-		{
-			cout << "\n\t\t- Maestro: " << guardian.GetMainMasterName();
-		}
-    	
-    	cout << "\n\t\t- Aldea: " << guardian.GetVillage() << endl;
-    	
-    	count++; //Incremento del contador
-    	temp.pop(); //Dequeue del primer elemento de la cola
-	}
-}*/
-
-/*Imprimir cola de aldeas
-void PrintVillagesQueue(queue<Village> villages)
-{
-	queue<Village> temp = villages; //Copia de la cola de aldeas
-	
-	cout << "\n\tLista de aldeas:" << endl;
-	int count = 1;
-	
-	while(!temp.empty()) //Mientras la copia tenga elementos, se muestran
-	{
-  		Village village = temp.front(); //Se obtiene el elemento que esta al frente en la cola
-  		
-  		cout << "\n\tAldea " << count << "\n\n\t\t- Nombre: " << village.GetName() << "\n\n\t\t- Aldeas adyacentes:" << endl;
-  		
-  		for(const auto& value : village.GetAdjacentVillagesNames())
-  		{
-  			cout << "\n\t\t\t* " << value;
-		}
-    	
-    	count++; //Incremento del contador
-    	temp.pop(); //Dequeue del primer elemento de la cola
-	}
-}*/
