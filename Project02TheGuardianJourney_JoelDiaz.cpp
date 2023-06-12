@@ -9,6 +9,18 @@
 #include <ctime>
 using namespace std;
 
+/*Notas
+
+	Aprendiz preparado
+	Verificar que la aldea a la que se quiere mover no sea Tesla
+	Si se quiere mover a tesla, debe ser aprendiz preparado
+	Agregar busqueda de caminos entre cada aldea y Tesla para verificar que se puede llegar desde el inicio y que no hay subgrafos
+	Historiales
+	Opcion 3 en gameloop: Alquimia, crear camino entre aldeas sacrificando puntos de poder
+		verificar que la cantidad de puntos de poder sea minimo 4 ya que es el maximo de poder que se puede emplear en alquimia
+
+*/
+
 //Variables globales
 int minVillages = 3; //Minimo de aldeas
 int minAdjacentVillages = 2; //Minimo de conexiones entre aldeas
@@ -17,6 +29,7 @@ int minPower = maxPower / 2; //Poder minimo de un guardian
 int minPowerMainMaster = (maxPower / 10) * 9; //Poder minimo del maestro principal
 string mainVillage = "Tesla"; //Aldea principal
 int minGuardiansPerVillage = 2; //Minimo de guardianes por aldea
+int maxPointsInARow = 4; //Puntaje maximo por aldea
 
 //Clases
 
@@ -32,9 +45,54 @@ class Player
 			power_ = power;
 			homeVillage_ = home;
 			currentVillage_ = home;
+			pointsInARow_ = 0;
+			preparedApprentice_ = false;
 		}
 		
 		//Metodos
+		void IncrementPower(int increment)
+		{
+			if(power_ + increment >= maxPower) //No se puede pasar del poder maximo
+			{
+				power_ = maxPower;
+			}
+			else
+			{
+				power_ += increment;
+			}			
+		}
+		
+		void PrintData(bool powerComparison, int lastPower)
+		{
+			cout << "\n\t--------------- DATOS DEL JUGADOR ---------------" << endl;
+			cout << "\n\t* Nombre: " << name_;
+			
+			if(powerComparison)
+			{
+				cout << "\n\t* Puntos de poder (al llegar): " << lastPower;
+			}
+			
+			cout << "\n\t* Puntos de poder (actual): " << power_ << "\n\t* Aldea de origen: " << homeVillage_ << "\n\t* Aldea actual: " << currentVillage_ << endl;
+		}
+		
+		void IncrementPointsInARow(int points, bool* maxReached)
+		{
+			if(pointsInARow_ + points >= maxPointsInARow)
+			{
+				pointsInARow_ = maxPointsInARow;
+				*maxReached = true; //Se alcanzo el maximo de puntos seguidos
+			}
+			else
+			{
+				pointsInARow_ += points;
+			}
+		}
+		
+		void RestartPointsInARow()
+		{
+			pointsInARow_ = 1;
+			power_++;
+		}
 		
 		//Setters
 		void SetCurrentVillage(string name)
@@ -63,13 +121,20 @@ class Player
 			return currentVillage_;
 		}
 		
+		int GetPointsInARow()
+		{
+			return pointsInARow_;
+		}
+		
 	private:
 		
 		//Atributos
 		string name_;
 		int power_;
+		int pointsInARow_;
 		string homeVillage_;
 		string currentVillage_;
+		bool preparedApprentice_;
 		//AGREGAR HISTORIALES
 };
 
@@ -214,6 +279,7 @@ class Village
 			numGuardians_ = 0;
 			numAdjacentVillages_ = 0;
 			master_ = nullptr;
+			maxPointsInARowReached_= false;
 		}
 		
 		Village(string name, string adjacentVillageName)
@@ -223,6 +289,7 @@ class Village
 			numAdjacentVillages_ = 1;
 			numGuardians_ = 0;
 			master_ = nullptr;
+			maxPointsInARowReached_ = false;
 		}
 		
 		//Destructor
@@ -317,6 +384,11 @@ class Village
 			}
 		}
 		
+		void MaxPointsInARowReached()
+		{
+			maxPointsInARowReached_ = true;
+		}
+		
 		//Setters
 		void SetName(string name)
 		{
@@ -350,18 +422,13 @@ class Village
 		}
 		
 		Guardian* GetMainMaster()
-		{
-/*Guardian* mainMaster = guardians_.front();
-			
-			for(const auto& guardian : guardians_)
-			{
-				if(guardian->GetPowerLevel() > mainMaster->GetPowerLevel())
-				{
-					mainMaster = guardian;
-				}
-			}*/
-			
+		{			
 			return master_;
+		}
+		
+		bool GetPointsInARowReached()
+		{
+			return maxPointsInARowReached_;
 		}
 	
 	//Atributos
@@ -373,6 +440,7 @@ class Village
 		Guardian* master_;
 		int numGuardians_;
 		int numAdjacentVillages_;
+		bool maxPointsInARowReached_;
 };
 
 //Nodo guardian (Para la lista de guardianes)
@@ -572,6 +640,16 @@ class VillageNode
 				}
 			}
 		}
+		
+		/*void ReplaceVillage(Village* replacement, VillageNode** villages)
+		{
+			VillageNode* current = *villages;
+			
+			while(current != nullptr)
+			{
+				
+			}
+		}*/
 		
 		void PrintFullList(VillageNode* root) //Imprimir la lista de aldeas
 		{
@@ -828,6 +906,7 @@ string TrainingModeGetDifficulty(int); //Obtener la dificultad de un enfrentamie
 int TrainingModeOpponentSelection(); //Menu de accion al momento de seleccionar un oponente
 void TrainingModePrintGuardians(Village*, Player*, Guardian*, int*, Guardian**); //Imprimir los guardianes a los que se puede enfrentar el player
 void TrainingModeDiceRoll(vector<int>*, int); //Lanzamiento de dados para saber el resultado del enfrentamiento
+void TrainingModeUpdatePlayer(Player**, int, Village*); //Actualizacion de los datos del jugador
 void TrainingModeShowdownResult(vector<int>, Guardian*, Player**, bool); //Resultado del enfrentamiento
 void TrainingModeGuardiansShowdown(Guardian*, Player**, bool); //Enfrentamiento de guardianes
 void TrainingMode(Village*, Player**); //Modo de entrenamiento
@@ -841,24 +920,20 @@ int main()
 	Player* player = nullptr;
 	bool successRead = true, endGame = false;
 	
-	ReadFiles(&guardians, &villages, &successRead);
+	ReadFiles(&guardians, &villages, &successRead); //Lectura de archivos
 	
-//successRead = true;
-	
-	if(successRead)
+	if(successRead) //Lectura de archivos correcta
 	{
 		//guardians->PrintJustName(guardians);
 		//villages->PrintFullList(villages);
 		//villages->PrintJustNames(villages);
 		
-		MainMenu(&guardians, &villages, &player, &endGame);
+		MainMenu(&guardians, &villages, &player, &endGame); //Menu principal del juego
 		
-		if(!endGame)
+		if(!endGame) //El usuario no eligio cerrar el juego
 		{
-			GameLoop(&guardians, &villages, &player);
+			GameLoop(&guardians, &villages, &player); //Loop del juego
 		}	
-		
-//cout << "\n\t\tIn main:\n\t\tNombre del jugador: " << player->GetName() << "\n\t\tPoder: " << player->GetPower() << "\n\t\tAldea: " << player->GetHomeVillage();
 	}
 	
 	return 0;
@@ -1695,8 +1770,25 @@ void TrainingModeDiceRoll(vector<int>* winningNumbers, int nums)
 	}
 }
 
+//Actualizacion de los datos del jugador
+void TrainingModeUpdatePlayer(Player** player, int points, Village* current)
+{
+	bool maxReached = false;
+	(*player)->IncrementPower(points); //Incremento de poder
+	(*player)->IncrementPointsInARow(points, &maxReached); //Incremento del puntaje obtenido de manera seguida
+	
+	int lastPower = (*player)->GetPower() - (*player)->GetPointsInARow(); //Poder con el que el jugador llego a la aldea actual
+	
+	(*player)->PrintData(true, lastPower);
+	
+	if(maxReached) //Se alcanzo el maximo puntaje de la aldea
+	{
+		current->MaxPointsInARowReached();
+	}
+}
+
 //Resultado del enfrentamiento
-void TrainingModeShowdownResult(vector<int> winningNumbers, Guardian* opponent, Player** player, bool master)
+void TrainingModeShowdownResult(vector<int> winningNumbers, Guardian* opponent, Player** player, bool master, Village* village)
 {
 	int dice = rand() % 10 + 1, victoryPoints = 1;
 	bool playerWin = false;
@@ -1717,6 +1809,7 @@ void TrainingModeShowdownResult(vector<int> winningNumbers, Guardian* opponent, 
 	if(playerWin)
 	{
 		cout << "\n\t\t* Felicidades!! Has derrotado a " << opponent->GetName() << " por lo que has ganado " << victoryPoints << " puntos *" << endl;
+		TrainingModeUpdatePlayer(player, victoryPoints, village);
 	}
 	else
 	{
@@ -1725,7 +1818,7 @@ void TrainingModeShowdownResult(vector<int> winningNumbers, Guardian* opponent, 
 }
 
 //Enfrentamiento de guardianes
-void TrainingModeGuardiansShowdown(Guardian* opponent, Player** player, bool master)
+void TrainingModeGuardiansShowdown(Guardian* opponent, Player** player, bool master, Village* village)
 {
 	int winProbability = TrainingModeGetWinProbability(opponent, *player);
 	string difficulty = TrainingModeGetDifficulty(winProbability);
@@ -1750,7 +1843,7 @@ void TrainingModeGuardiansShowdown(Guardian* opponent, Player** player, bool mas
 		TrainingModeDiceRoll(&winningNumbers, impossibleNums);
 	}
 	
-	TrainingModeShowdownResult(winningNumbers, opponent, player, master);
+	TrainingModeShowdownResult(winningNumbers, opponent, player, master, village);
 }
 
 //Modo de entrenamiento
@@ -1759,34 +1852,42 @@ void TrainingMode(Village* village, Player** player)
 	cout << "\n\t----------------------------------- ENTRENAMIENTO -----------------------------------" << endl;
 	cout << "\n\tEntrenar aumenta tus puntos de poder de la siguiente manera:\n\n\t\t- Obtienes +1 punto si derrotas un aprendiz\n\t\t- Obtienes +2 puntos si derrotas al maestro de la aldea\n\n\t* Consideraciones:\n\n\t\t1. Dependiendo de los puntos de poder de cada guardian el enfrentamiento\n\t\ttendra una dificultad y una probabilidad de ganar\n\t\t2. El maximo de puntos seguidos que puedes alcanzar en una aldea son 4\n\n\tCon eso en mente, puedes continuar;" << endl;
 	string name = village->GetName();
-	int numGuardians = village->GetNumGuardians(), guardianSelection = -1;
-	Guardian* opponent = nullptr;
-	bool master = false;
 	
-	cout << "\n\tAldea actual: " << name;
-	TrainingModePrintGuardians(village, *player, village->GetMainMaster(), &guardianSelection, &opponent);
-	
-	if(guardianSelection == -1) //El jugador no acepto la sugerencia de combate
+	if(village->GetPointsInARowReached())
 	{
-		cout << "\n\t* Ingresa el NUMERO del guardian con el que deseas entrenar: ";
-		cin >> guardianSelection;
+		cout << "\n\t* Ya has alcanzado el puntaje maximo en " << name << ", por lo que tendras que\n\tcontinuar tu viaje *" << endl;
+	}
+	else
+	{
+		int numGuardians = village->GetNumGuardians(), guardianSelection = -1;
+		Guardian* opponent = nullptr;
+		bool master = false;
 		
-		while(guardianSelection <= 0 || guardianSelection > numGuardians)
+		cout << "\n\tAldea actual: " << name;
+		TrainingModePrintGuardians(village, *player, village->GetMainMaster(), &guardianSelection, &opponent); //Mostrar los guardianes
+		
+		if(guardianSelection == -1) //El jugador no acepto la sugerencia de combate
 		{
-			cout << "\n\t\t* (Error: Opcion fuera de rango) Por favor, selecciona un guardian de la lista: ";
+			cout << "\n\t* Ingresa el NUMERO del guardian con el que deseas entrenar: ";
 			cin >> guardianSelection;
+			
+			while(guardianSelection <= 0 || guardianSelection > numGuardians)
+			{
+				cout << "\n\t\t* (Error: Opcion fuera de rango) Por favor, selecciona un guardian de la lista: ";
+				cin >> guardianSelection;
+			}
+			
+			opponent = village->SearchGuardianByIndex(guardianSelection);
 		}
 		
-		opponent = village->SearchGuardianByIndex(guardianSelection);
-	}
-	
-	if(opponent == village->GetMainMaster()) //El oponente es el maestro
-	{
-		master = true;
-	}
-	
-	cout << "\n\t* Has elegido a " << opponent->GetName() << " como tu oponente *\n\t* Entrando en la arena de entrenamiento *\n\t* Enfrentamiento en curso... *\n\t* Obteniendo resultados del enfrentamiento... *" << endl;
-	TrainingModeGuardiansShowdown(opponent, player, master);
+		if(opponent == village->GetMainMaster()) //El oponente es el maestro
+		{
+			master = true;
+		}
+		
+		cout << "\n\t* Has elegido a " << opponent->GetName() << " como tu oponente *\n\t* Entrando en la arena de entrenamiento *\n\t* Enfrentamiento en curso... *\n\t* Obteniendo resultados del enfrentamiento... *" << endl;
+		TrainingModeGuardiansShowdown(opponent, player, master, village); //Enfrentamiento entre el jugador y el guardian seleccionado
+	}	
 }
 
 //Viajar a otra aldea
@@ -1794,7 +1895,7 @@ void TravelToVillage(Village* currentVillage, VillageNode* villages, Player** pl
 {
 	cout << "\n\t----------------------------------- VIAJE A OTRA ALDEA -----------------------------------" << endl;
 	cout << "\n\tViajar a otra aldea te permite enfrentarte a otros guardianes y completar el viaje entre\n\taldeas, requisito necesario para llegar a " << mainVillage << " y enfrentarte al maestro supremo y\n\tobtener el titulo de Maestro de los guardianes. Ademas, cada vez que visitas una aldea\n\tobtienes +1 punto de poder por lo que es una buena opcion si no puedes derrotar a algun\n\tmaestro mas fuerte.\n\n\t* Consideracion: Solo puedes moverte entre aldeas que estan conectadas\n\n\tAhora puedes continuar con la seleccion de la aldea a la que quieres viajar;" << endl;
-	
+
 	vector<string> adjacentVillages = currentVillage->GetAdjacentVillagesNames();
 	cout << "\n\tAldea actual: " << currentVillage->GetName();
 	cout << "\n\tAldeas a las que puedes viajar:\n" << endl;
@@ -1820,14 +1921,14 @@ void TravelToVillage(Village* currentVillage, VillageNode* villages, Player** pl
 	string newVillageName = currentVillage->SearchVillageByIndex(option);
 	Village* newVillage = villages->SearchVillage(villages, newVillageName);
 	cout << "\n\t* Viajando a " << newVillageName << " *\n\t* Has llegado a " << newVillageName << " y has obtenido 1 punto!! *" << endl;
-	(*player)->SetCurrentVillage(newVillageName);
+	(*player)->SetCurrentVillage(newVillageName); //Cambia la aldea actual del player
+	(*player)->RestartPointsInARow(); //Reinicio del puntaje obtenido de manera seguida
 }
 
 //Loop del juego
 void GameLoop(GuardianNode** guardians, VillageNode** villages, Player** player)
 {
 	InitializeGame(villages); //Inicializacion del juego (Grafo)
-	
 	bool stopGame = false;
 	int option = 0;
 	
