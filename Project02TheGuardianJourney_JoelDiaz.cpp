@@ -6,6 +6,7 @@
 #include<limits>
 #include <unordered_map>
 #include <string>
+#include <ctime>
 using namespace std;
 
 //Variables globales
@@ -1559,6 +1560,111 @@ void TrainingModePrintGuardians(Village* village, Player* player, Guardian* mast
 	}
 }
 
+//Lanzamiento de dados para saber el resultado del enfrentamiento
+void TrainingModeDiceRoll(vector<int>* winningNumbers, int nums)
+{
+	//Lanzamiento de dados (10 numeros)
+	srand(time(NULL));
+	int dice = 0;
+	
+	for(int i = 0; i < nums; i++)
+	{
+		dice = rand() % 10 + 1;
+		bool add = true;
+		
+		if(i != 0)
+		{
+			do
+			{
+				add = true;
+				
+				for(const auto& num : *winningNumbers) //Se comprueba que el numero no este en la lista de numeros ganadores
+				{
+					if(num == dice) //El numero ya esta en la lista
+					{
+						add = false;
+					}
+				}
+				
+				if(!add)
+				{
+					dice = rand() % 10 + 1; //Se lanza nuevamente el dado en caso de que el numero ya estuviera
+				}
+			}
+			while(!add);
+		}
+		
+		(*winningNumbers).push_back(dice);
+	}
+}
+
+//Resultado del enfrentamiento
+void TrainingModeShowdownResult(vector<int> winningNumbers, Guardian* opponent, Player** player, bool master)
+{
+	int dice = rand() % 10 + 1, victoryPoints = 1;
+	bool playerWin = false;
+	
+	if(master)
+	{
+		victoryPoints = 2;
+	}
+	
+	for(const auto& num : winningNumbers)
+	{
+		if(num == dice)
+		{
+			playerWin = true;
+		}
+	}
+	
+//cout << "\n\tResultado del dado: " << dice;
+	
+	if(playerWin)
+	{
+		cout << "\n\t\t* Felicidades!! Has derrotado a " << opponent->GetName() << " por lo que has ganado " << victoryPoints << " puntos *" << endl;
+	}
+	else
+	{
+		cout << "\n\t\t* Lo siento :( Has sido derrotado por " << opponent->GetName() << ", pero no te rindas, lo importante es seguir mejorando :) *" << endl;
+	}
+}
+
+//Enfrentamiento de guardianes
+void TrainingModeGuardiansShowdown(Guardian* opponent, Player** player, bool master)
+{
+	int winProbability = TrainingModeGetWinProbability(opponent, *player);
+	string difficulty = TrainingModeGetDifficulty(winProbability);
+	int easyNums = 8, mediumNums = 6, hardNums = 4, impossibleNums = 2; //Cantidad de numeros ganadores por dificultad
+	vector<int> winningNumbers; //Numeros ganadores
+	
+	//Dependiendo del nivel de dificultad se escogen numeros ganadores
+	if(difficulty == "Facil")
+	{
+		TrainingModeDiceRoll(&winningNumbers, easyNums);
+	}
+	else if(difficulty == "Media")
+	{
+		TrainingModeDiceRoll(&winningNumbers, mediumNums);
+	}
+	else if(difficulty == "Dificil")
+	{
+		TrainingModeDiceRoll(&winningNumbers, hardNums);
+	}
+	else
+	{
+		TrainingModeDiceRoll(&winningNumbers, impossibleNums);
+	}
+	
+/*
+	cout << "\n\tNumeros ganadores: ";
+	for(const auto& num : winningNumbers)
+	{
+		cout << num << " ";
+	}*/
+	
+	TrainingModeShowdownResult(winningNumbers, opponent, player, master);
+}
+
 //Modo de entrenamiento
 void TrainingMode(Village* village, Player** player)
 {
@@ -1567,6 +1673,7 @@ void TrainingMode(Village* village, Player** player)
 	string name = village->GetName();
 	int numGuardians = village->GetNumGuardians(), guardianSelection = -1;
 	Guardian* opponent = nullptr;
+	bool master = false;
 	
 	cout << "\n\tAldea actual: " << name;
 	TrainingModePrintGuardians(village, *player, village->GetMainMaster(), &guardianSelection, &opponent);
@@ -1585,7 +1692,13 @@ void TrainingMode(Village* village, Player** player)
 		opponent = village->SearchGuardianByIndex(guardianSelection);
 	}
 	
-	cout << "\n\t* Tu oponente es " << opponent->GetName() << " *\n\t* Entrando en la arena de entrenamiento *\n\t* Enfrentamiento en curso... *\n\t* Obteniendo resultados del enfrentamiento... *" << endl;
+	if(opponent == village->GetMainMaster()) //El oponente es el maestro
+	{
+		master = true;
+	}
+	
+	cout << "\n\t* Has elegido a " << opponent->GetName() << " como tu oponente *\n\t* Entrando en la arena de entrenamiento *\n\t* Enfrentamiento en curso... *\n\t* Obteniendo resultados del enfrentamiento... *" << endl;
+	TrainingModeGuardiansShowdown(opponent, player, master);
 }
 
 //Viajar a otra aldea
